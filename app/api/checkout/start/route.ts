@@ -4,7 +4,6 @@ import { redis } from "@/lib/redis"; // <- use your existing Upstash client
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   // If this causes issues, remove the apiVersion line
-  apiVersion: "2025-01-27.acacia",
 });
 
 type ReqBody = {
@@ -121,3 +120,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
