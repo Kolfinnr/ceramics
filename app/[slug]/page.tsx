@@ -5,9 +5,9 @@ import { notFound } from "next/navigation";
 export default async function DynamicPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }) {
-  const { slug } = await params;
+  const { slug } = params;
 
   const token = process.env.STORYBLOK_TOKEN;
   if (!token) return <main style={{ padding: 40 }}>Missing STORYBLOK_TOKEN</main>;
@@ -26,7 +26,7 @@ export default async function DynamicPage({
       </main>
     );
   } catch (e: any) {
-    // Storyblok returns 404 when story slug doesn't exist
     return notFound();
   }
 }
+
