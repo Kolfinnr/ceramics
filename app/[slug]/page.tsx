@@ -25,9 +25,25 @@ export default async function DynamicPage({
         ))}
       </main>
     );
-  } catch (e: any) {
-    return notFound();
-  }
+} catch (e: any) {
+  console.error("DynamicPage error:", e);
+
+  return (
+    <main style={{ padding: 40 }}>
+      <h1>DynamicPage error</h1>
+
+      <pre style={{ whiteSpace: "pre-wrap", color: "red" }}>
+        {String(e?.message || e)}
+      </pre>
+
+      <p><b>slug:</b> {slug}</p>
+      <p><b>STORYBLOK_TOKEN present:</b> {String(!!process.env.STORYBLOK_TOKEN)}</p>
+      <p><b>STORYBLOK_TOKEN length:</b> {String(process.env.STORYBLOK_TOKEN?.length ?? 0)}</p>
+    </main>
+  );
 }
+
+}
+
 
 
