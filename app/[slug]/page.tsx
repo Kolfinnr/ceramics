@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import BlockRenderer from "../../components/BlockRenderer"; // adjust if needed
+import BlockRenderer from "../../components/BlockRenderer";
 
 export default async function ProductPage({
   params,
@@ -9,7 +9,9 @@ export default async function ProductPage({
   const { slug } = params;
 
   const token = process.env.STORYBLOK_TOKEN?.trim();
-  if (!token) return <main style={{ padding: 40 }}>Missing STORYBLOK_TOKEN</main>;
+  if (!token) {
+    return <main style={{ padding: 40 }}>Missing STORYBLOK_TOKEN</main>;
+  }
 
   const url =
     `https://api.storyblok.com/v2/cdn/stories/products/${encodeURIComponent(slug)}` +
@@ -17,19 +19,18 @@ export default async function ProductPage({
 
   const res = await fetch(url, { next: { revalidate: 60 } });
 
-  if (res.status === 404) return notFound();
+  if (res.status === 404) {
+    return notFound();
+  }
 
   const raw = await res.text();
   if (!res.ok) {
-    // don't leak token in errors
     throw new Error(`Storyblok ${res.status}: ${raw}`);
   }
 
   const data = JSON.parse(raw);
   const body = data.story?.content?.body ?? data.story?.content ?? null;
 
-  // If your CeramicItem is a custom component, render it here instead of BlockRenderer.
-  // For now, if it uses body blocks:
   if (Array.isArray(body)) {
     return (
       <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
@@ -40,14 +41,18 @@ export default async function ProductPage({
     );
   }
 
-  // Otherwise, basic fallback:
   return (
     <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 32, marginBottom: 16 }}>{data.story?.name}</h1>
-      <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(body, null, 2)}</pre>
+      <h1 style={{ fontSize: 32, marginBottom: 16 }}>
+        {data.story?.name}
+      </h1>
+      <pre style={{ whiteSpace: "pre-wrap" }}>
+        {JSON.stringify(body, null, 2)}
+      </pre>
     </main>
   );
 }
+
 
 
 
