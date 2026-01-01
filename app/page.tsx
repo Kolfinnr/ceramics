@@ -1,5 +1,5 @@
-import DynamicPage from "./[slug]/page";
+import DynamicPage from "../[slug]/page";
 
-export default function Home() {
-  return <DynamicPage params={{ slug: "home" }} />;
+export default function Store() {
+  return <DynamicPage params={{ slug: "store" }} />;
 }
