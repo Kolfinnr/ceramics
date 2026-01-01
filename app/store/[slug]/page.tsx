@@ -1,31 +1,53 @@
-import StoryblokClient from "storyblok-js-client";
 import { notFound } from "next/navigation";
-import CeramicItem from "../../../components/CeramicItem";
-import { redis } from "@/lib/redis";
+import BlockRenderer from "../../components/BlockRenderer"; // adjust if needed
 
 export default async function ProductPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }) {
-  const { slug } = await params;
+  const { slug } = params;
 
-  const token = process.env.STORYBLOK_TOKEN;
+  const token = process.env.STORYBLOK_TOKEN?.trim();
   if (!token) return <main style={{ padding: 40 }}>Missing STORYBLOK_TOKEN</main>;
 
-  const sb = new StoryblokClient({ accessToken: token });
+  const url =
+    `https://api.storyblok.com/v2/cdn/stories/products/${encodeURIComponent(slug)}` +
+    `?version=published&token=${encodeURIComponent(token)}`;
 
-  try {
+  const res = await fetch(url, { next: { revalidate: 60 } });
 
-const fullSlug = slug === "home" ? "pages/home" : `pages/${slug}`;
-const { data } = await sb.get(`cdn/stories/${fullSlug}`, { version: "published" });
+  if (res.status === 404) return notFound();
 
-    const redisStatus = await redis.get<string>(`status:product:${slug}`);
-    const isRedisSold = redisStatus === "sold";
-
-    return <CeramicItem story={data.story} isRedisSold={isRedisSold} />;
-  } catch (e) {
-    return notFound();
+  const raw = await res.text();
+  if (!res.ok) {
+    // don't leak token in errors
+    throw new Error(`Storyblok ${res.status}: ${raw}`);
   }
+
+  const data = JSON.parse(raw);
+  const body = data.story?.content?.body ?? data.story?.content ?? null;
+
+  // If your CeramicItem is a custom component, render it here instead of BlockRenderer.
+  // For now, if it uses body blocks:
+  if (Array.isArray(body)) {
+    return (
+      <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
+        {body.map((blok: any) => (
+          <BlockRenderer key={blok._uid} blok={blok} />
+        ))}
+      </main>
+    );
+  }
+
+  // Otherwise, basic fallback:
+  return (
+    <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 32, marginBottom: 16 }}>{data.story?.name}</h1>
+      <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(body, null, 2)}</pre>
+    </main>
+  );
 }
+
+
 
