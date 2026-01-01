@@ -11,7 +11,7 @@ export default async function StorePage({ blok }: { blok: any }) {
   const sb = new StoryblokClient({ accessToken: token });
 
   const { data } = await sb.get("cdn/stories", {
-    version: "draft",
+    version: "published",
     starts_with: "products/",
     is_startpage: false,
     per_page: 100,
@@ -48,3 +48,4 @@ export default async function StorePage({ blok }: { blok: any }) {
     </section>
   );
 }
+
