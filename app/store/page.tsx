@@ -1,5 +1,5 @@
 import DynamicPage from "../[slug]/page";
 
-export default function StoreIndex() {
+export default function Store() {
   return <DynamicPage params={{ slug: "store" }} />;
 }
