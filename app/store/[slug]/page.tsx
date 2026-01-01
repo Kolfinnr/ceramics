@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
-import BlockRenderer from "../../../components/BlockRenderer"; // adjust if needed
 
-export default async function ProductPage({
+export default async function ProductDebugPage({
   params,
 }: {
   params: { slug: string };
@@ -20,34 +19,22 @@ export default async function ProductPage({
   if (res.status === 404) return notFound();
 
   const raw = await res.text();
-  if (!res.ok) {
-    // don't leak token in errors
-    throw new Error(`Storyblok ${res.status}: ${raw}`);
-  }
+  if (!res.ok) throw new Error(`Storyblok ${res.status}: ${raw}`);
 
   const data = JSON.parse(raw);
-  const body = data.story?.content?.body ?? data.story?.content ?? null;
 
-  // If your CeramicItem is a custom component, render it here instead of BlockRenderer.
-  // For now, if it uses body blocks:
-  if (Array.isArray(body)) {
-    return (
-      <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
-        {body.map((blok: any) => (
-          <BlockRenderer key={blok._uid} blok={blok} />
-        ))}
-      </main>
-    );
-  }
-
-  // Otherwise, basic fallback:
   return (
-    <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 32, marginBottom: 16 }}>{data.story?.name}</h1>
-      <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(body, null, 2)}</pre>
+    <main style={{ padding: 40 }}>
+      <h1>PRODUCT ROUTE HIT ✅</h1>
+      <p><b>slug:</b> {slug}</p>
+      <pre style={{ whiteSpace: "pre-wrap" }}>
+        {JSON.stringify(data.story, null, 2)}
+      </pre>
     </main>
   );
 }
+
+
 
 
 
