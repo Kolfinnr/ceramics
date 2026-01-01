@@ -3,10 +3,8 @@ import Stripe from "stripe";
 import { redis } from "@/lib/redis";
 import { createOrderStory } from "@/lib/storyblok-management";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, 
-                          //placeholder// {
-});
-
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!); 
+                          
 export async function POST(req: Request) {
   const sig = req.headers.get("stripe-signature");
   if (!sig) return NextResponse.json({ error: "Missing signature" }, { status: 400 });
@@ -95,5 +93,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }
+
 
 
