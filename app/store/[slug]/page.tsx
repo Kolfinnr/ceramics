@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
+import CeramicItem from "../../../components/CeramicItem"; // <-- adjust if your path differs
 
-export default async function ProductPage({
+export const revalidate = 60;
+
+export default async function StoreItemPage({
   params,
 }: {
   params: { slug: string };
@@ -10,47 +13,38 @@ export default async function ProductPage({
   const token = process.env.STORYBLOK_TOKEN?.trim();
   if (!token) return <main style={{ padding: 40 }}>Missing STORYBLOK_TOKEN</main>;
 
-  // 1) Search for the product by slug, anywhere under products/
-  const searchUrl =
+  // 1) Find the product anywhere under products/ by matching slug
+  const listUrl =
     `https://api.storyblok.com/v2/cdn/stories` +
     `?version=published` +
     `&token=${encodeURIComponent(token)}` +
     `&starts_with=products/` +
-    `&per_page=100` +
     `&is_startpage=false` +
+    `&per_page=100` +
     `&filter_query[slug][in]=${encodeURIComponent(slug)}`;
 
-  const searchRes = await fetch(searchUrl, { next: { revalidate: 60 } });
-  const searchRaw = await searchRes.text();
+  const listRes = await fetch(listUrl, { next: { revalidate } });
 
-  if (!searchRes.ok) {
-    throw new Error(`Storyblok search ${searchRes.status}: ${searchRaw}`);
-  }
+  if (listRes.status === 404) return notFound();
 
-  const searchData = JSON.parse(searchRaw);
-  const stories = searchData?.stories ?? [];
+  const listRaw = await listRes.text();
+  if (!listRes.ok) throw new Error(`Storyblok list ${listRes.status}: ${listRaw}`);
 
-  if (!stories.length) return notFound();
+  const listData = JSON.parse(listRaw);
+  const story = listData?.stories?.[0];
 
-  // If there are multiple matches, take the newest or the first.
-  const story = stories[0];
+  if (!story) return notFound();
 
-  // 2) Render debug for now (so we confirm it's the right product)
+  // 2) Render the product
+  // story.content is the blok (component: CeramicItem etc.)
   return (
-    <main style={{ padding: 40 }}>
-      <h1>Product found ✅</h1>
-      <p>
-        <b>URL slug:</b> {slug}
-      </p>
-      <p>
-        <b>Storyblok full_slug:</b> {story.full_slug}
-      </p>
-      <pre style={{ whiteSpace: "pre-wrap" }}>
-        {JSON.stringify(story, null, 2)}
-      </pre>
+    <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
+      <CeramicItem blok={story.content} />
     </main>
   );
 }
+
+
 
 
 
