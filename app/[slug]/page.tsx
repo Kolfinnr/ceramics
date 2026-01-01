@@ -1,7 +1,7 @@
-import BlockRenderer from "../../components/BlockRenderer";
+import BlockRenderer from "../../../components/BlockRenderer";
 import { notFound } from "next/navigation";
 
-export default async function DynamicPage({
+export default async function ProductPage({
   params,
 }: {
   params: { slug: string };
@@ -12,7 +12,7 @@ export default async function DynamicPage({
   if (!token) return <main style={{ padding: 40 }}>Missing STORYBLOK_TOKEN</main>;
 
   const url =
-    `https://api.storyblok.com/v2/cdn/stories/pages/${encodeURIComponent(slug)}` +
+    `https://api.storyblok.com/v2/cdn/stories/products/${encodeURIComponent(slug)}` +
     `?version=published&token=${encodeURIComponent(token)}`;
 
   const res = await fetch(url, { next: { revalidate: 60 } });
@@ -23,16 +23,30 @@ export default async function DynamicPage({
   if (!res.ok) throw new Error(`Storyblok ${res.status}: ${raw}`);
 
   const data = JSON.parse(raw);
-  const body = data.story?.content?.body ?? [];
 
+  // CeramicItem stories likely don't have "body" blocks:
+  const content = data.story?.content;
+
+  // If you do have body blocks, render them:
+  const body = content?.body;
+  if (Array.isArray(body)) {
+    return (
+      <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
+        {body.map((blok: any) => (
+          <BlockRenderer key={blok._uid} blok={blok} />
+        ))}
+      </main>
+    );
+  }
+
+  // Otherwise, render the single component (CeramicItem) through BlockRenderer:
   return (
     <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
-      {body.map((blok: any) => (
-        <BlockRenderer key={blok._uid} blok={blok} />
-      ))}
+      <BlockRenderer blok={content} />
     </main>
   );
 }
+
 
 
 
