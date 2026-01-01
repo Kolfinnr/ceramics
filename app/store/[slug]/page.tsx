@@ -17,9 +17,9 @@ export default async function ProductPage({
 
   try {
 
-    const { data } = await sb.get(`cdn/stories/products/${slug}`, {
-      version: "published",
-    });
+const fullSlug = slug === "home" ? "pages/home" : `pages/${slug}`;
+const { data } = await sb.get(`cdn/stories/${fullSlug}`, { version: "published" });
+
     const redisStatus = await redis.get<string>(`status:product:${slug}`);
     const isRedisSold = redisStatus === "sold";
 
@@ -28,3 +28,4 @@ export default async function ProductPage({
     return notFound();
   }
 }
+
