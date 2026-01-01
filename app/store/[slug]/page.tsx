@@ -16,8 +16,9 @@ export default async function ProductPage({
   const sb = new StoryblokClient({ accessToken: token });
 
   try {
+
     const { data } = await sb.get(`cdn/stories/products/${slug}`, {
-      version: "draft",
+      version: "published",
     });
     const redisStatus = await redis.get<string>(`status:product:${slug}`);
     const isRedisSold = redisStatus === "sold";
