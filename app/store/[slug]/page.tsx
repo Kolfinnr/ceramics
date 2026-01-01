@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import BlockRenderer from "../../components/BlockRenderer"; // adjust if needed
+import BlockRenderer from "../../../components/BlockRenderer"; // adjust if needed
 
 export default async function ProductPage({
   params,
@@ -48,6 +48,7 @@ export default async function ProductPage({
     </main>
   );
 }
+
 
 
 
