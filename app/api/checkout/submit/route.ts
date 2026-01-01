@@ -41,9 +41,8 @@ export async function POST(req: Request) {
           await redis.del(`lock:product:${slug}`);
         }
 
-        const customerDetails = session.customer_details;
-        const shippingDetails = session.shipping_details;
-        const address = shippingDetails?.address ?? customerDetails?.address;
+const customerDetails = session.customer_details ?? null;
+const address = customerDetails?.address ?? null;
 
         try {
           await createOrderStory({
@@ -51,7 +50,7 @@ export async function POST(req: Request) {
             productSlugs,
             status: "paid",
             customer: {
-              name: shippingDetails?.name ?? customerDetails?.name ?? "Unknown",
+              name: customerDetails?.name ?? "Unknown",
               email: customerDetails?.email ?? "Unknown",
               phone: customerDetails?.phone ?? "Unknown",
               address1: address?.line1 ?? "Unknown",
@@ -93,6 +92,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }
+
 
 
 
