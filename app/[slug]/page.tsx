@@ -1,4 +1,4 @@
-import BlockRenderer from "../../../components/BlockRenderer";
+import BlockRenderer from "../../components/BlockRenderer";
 import { notFound } from "next/navigation";
 
 export default async function DynamicPage({
@@ -32,6 +32,7 @@ export default async function DynamicPage({
     </main>
   );
 }
+
 
 
 
