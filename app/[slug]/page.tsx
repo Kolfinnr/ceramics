@@ -1,32 +1,36 @@
-import StoryblokClient from "storyblok-js-client";
-import BlockRenderer from "../../components/BlockRenderer";
 import { notFound } from "next/navigation";
+import BlockRenderer from "../../components/BlockRenderer"; // adjust if needed
 
-export default async function DynamicPage({
+export default async function ProductPage({
   params,
 }: {
   params: { slug: string };
 }) {
   const { slug } = params;
 
-  const token = process.env.STORYBLOK_TOKEN;
+  const token = process.env.STORYBLOK_TOKEN?.trim();
   if (!token) return <main style={{ padding: 40 }}>Missing STORYBLOK_TOKEN</main>;
 
-  try {
   const url =
-    `https://api.storyblok.com/v2/cdn/stories/pages/${encodeURIComponent(slug)}` +
+    `https://api.storyblok.com/v2/cdn/stories/products/${encodeURIComponent(slug)}` +
     `?version=published&token=${encodeURIComponent(token)}`;
 
   const res = await fetch(url, { next: { revalidate: 60 } });
-  const raw = await res.text();
 
+  if (res.status === 404) return notFound();
+
+  const raw = await res.text();
   if (!res.ok) {
+    // don't leak token in errors
     throw new Error(`Storyblok ${res.status}: ${raw}`);
   }
 
   const data = JSON.parse(raw);
-  const body = data.story?.content?.body ?? [];
+  const body = data.story?.content?.body ?? data.story?.content ?? null;
 
+  // If your CeramicItem is a custom component, render it here instead of BlockRenderer.
+  // For now, if it uses body blocks:
+  if (Array.isArray(body)) {
     return (
       <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
         {body.map((blok: any) => (
@@ -34,25 +38,18 @@ export default async function DynamicPage({
         ))}
       </main>
     );
-} catch (e: any) {
-  console.error("DynamicPage error:", e);
+  }
 
+  // Otherwise, basic fallback:
   return (
-    <main style={{ padding: 40 }}>
-      <h1>DynamicPage error</h1>
-
-      <pre style={{ whiteSpace: "pre-wrap", color: "red" }}>
-        {String(e?.message || e)}
-      </pre>
-
-      <p><b>slug:</b> {slug}</p>
-      <p><b>STORYBLOK_TOKEN present:</b> {String(!!process.env.STORYBLOK_TOKEN)}</p>
-      <p><b>STORYBLOK_TOKEN length:</b> {String(process.env.STORYBLOK_TOKEN?.length ?? 0)}</p>
+    <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 32, marginBottom: 16 }}>{data.story?.name}</h1>
+      <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(body, null, 2)}</pre>
     </main>
   );
 }
 
-}
+
 
 
 
