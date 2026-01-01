@@ -17,7 +17,7 @@ export default async function DynamicPage({
     `https://api.storyblok.com/v2/cdn/stories/pages/${encodeURIComponent(slug)}` +
     `?version=published&token=${encodeURIComponent(token)}`;
 
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { next: { revalidate: 60 } });
   const raw = await res.text();
 
   if (!res.ok) {
@@ -53,6 +53,7 @@ export default async function DynamicPage({
 }
 
 }
+
 
 
 
