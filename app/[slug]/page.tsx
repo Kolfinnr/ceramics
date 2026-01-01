@@ -15,7 +15,7 @@ export default async function DynamicPage({
   const sb = new StoryblokClient({ accessToken: token });
 
   try {
-    const { data } = await sb.get(`cdn/stories/pages/${slug}`, { version: "draft" });
+    const { data } = await sb.get(`cdn/stories/pages/${slug}`, { version: "published" });
     const body = data.story?.content?.body ?? [];
 
     return (
@@ -29,4 +29,5 @@ export default async function DynamicPage({
     return notFound();
   }
 }
+
 
