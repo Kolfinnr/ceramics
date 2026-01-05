@@ -6,60 +6,69 @@ function getOrigin(req: Request) {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   if (!host) throw new Error("Missing Host header");
 
-  // Force https in production
   const proto =
     process.env.NODE_ENV === "production"
       ? "https"
-      : (req.headers.get("x-forwarded-proto") ?? "http");
+      : req.headers.get("x-forwarded-proto") ?? "http";
 
   return `${proto}://${host}`;
 }
-const delivery = "delivery" in body ? (body as any).delivery : null;
-const deliveryMethod = delivery?.method === "inpost" ? "inpost" : "courier";
-const inpostPoint = deliveryMethod === "inpost" ? delivery?.inpostPoint : null;
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-metadata: {
-  ...existingMetadata,
-  deliveryMethod,
-  inpostPoint: inpostPoint ? JSON.stringify(inpostPoint) : "",
-},
+
+const RESERVE_LUA = `
+local key = KEYS[1]
+local want = tonumber(ARGV[1])
+
+local current = tonumber(redis.call("GET", key) or "0")
+if current <= 0 then
+  return 0
+end
+
+local take = want
+if take > current then take = current end
+
+redis.call("DECRBY", key, take)
+return take
+`;
 
 type ReqItem = {
   productSlug: string;
   productName: string;
   pricePLN: number;
-  quantity: number; // ✅ new
+  quantity: number;
 };
 
 type ReqBody =
   | ReqItem
   | {
       items?: ReqItem[];
+      // New fields from CartView:
+      deliveryMethod?: "courier" | "inpost";
+      inpostPoint?: any;
+
+      // Back-compat if you used "delivery" earlier:
+      delivery?: { method?: "courier" | "inpost"; inpostPoint?: any };
     };
-
-// Reserve up to `want` units from stock key, decrementing stock atomically.
-// Returns reserved amount (0..want).
-const RESERVE_LUA = `
-local key = KEYS[1]
-local want = tonumber(ARGV[1]) or 0
-if want <= 0 then return 0 end
-
-local cur = tonumber(redis.call("GET", key) or "0")
-if cur <= 0 then return 0 end
-
-local take = want
-if cur < want then take = cur end
-
-redis.call("DECRBY", key, take)
-return take
-`;
 
 export async function POST(req: Request) {
   const reservedInStockBySlug: Record<string, number> = {};
 
   try {
     const body = (await req.json()) as ReqBody;
+
+    // Accept both formats:
+    const deliveryMethod: "courier" | "inpost" =
+      (typeof (body as any).deliveryMethod === "string"
+        ? (body as any).deliveryMethod
+        : (body as any).delivery?.method) === "inpost"
+        ? "inpost"
+        : "courier";
+
+    const inpostPoint =
+      deliveryMethod === "inpost"
+        ? (body as any).inpostPoint ?? (body as any).delivery?.inpostPoint ?? null
+        : null;
 
     const items: ReqItem[] =
       "items" in body && Array.isArray(body.items) && body.items.length > 0
@@ -111,19 +120,19 @@ export async function POST(req: Request) {
       const stockKey = `stock:product:${slug}`;
 
       // If stock key is missing, treat it as 0 in stock (all backorder).
-      // Your Store page should seed it from Storyblok pcs, but this keeps API robust.
-      const reservedRaw = await redis.eval(RESERVE_LUA, [stockKey], [String(want)]);
-      const reserved = Number(reservedRaw ?? 0);
+      const reservedRaw = await redis.eval(RESERVE_LUA, [stockKey], [
+        String(want),
+      ]);
 
+      const reserved = Number(reservedRaw ?? 0);
       reservedInStockBySlug[slug] = reserved;
 
       const backorder = Math.max(0, want - reserved);
-      if (backorder > 0) backorderBySlug[slug] = backorder;
+      backorderBySlug[slug] = backorder;
     }
 
-    // Create Stripe session
+    const primarySlug = items[0]!.productSlug;
     const productSlugs = items.map((i) => i.productSlug);
-    const primarySlug = productSlugs[0];
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -135,7 +144,9 @@ export async function POST(req: Request) {
         },
         quantity: item.quantity,
       })),
-      shipping_address_collection: { allowed_countries: ["PL", "CZ", "DE", "SK", "AT"] },
+      shipping_address_collection: {
+        allowed_countries: ["PL", "CZ", "DE", "SK", "AT"],
+      },
       phone_number_collection: { enabled: true },
       expires_at: Math.floor(Date.now() / 1000) + lockTtlSeconds,
       success_url: `${siteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -146,6 +157,10 @@ export async function POST(req: Request) {
         quantities: JSON.stringify(qtyBySlug),
         reservedInStock: JSON.stringify(reservedInStockBySlug),
         backorder: JSON.stringify(backorderBySlug),
+
+        // ✅ delivery info
+        deliveryMethod,
+        inpostPoint: inpostPoint ? JSON.stringify(inpostPoint) : "",
       },
     });
 
@@ -170,16 +185,13 @@ export async function POST(req: Request) {
     }
 
     console.error(e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "Server error" },
+      { status: 500 }
+    );
   }
-  body: JSON.stringify({
-  items: cartItems,
-  delivery: {
-    method: deliveryMethod,
-    inpostPoint: deliveryMethod === "inpost" ? inpostPoint : null,
-  },
-}),
 }
+
 
 
 
