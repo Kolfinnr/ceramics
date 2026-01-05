@@ -1,14 +1,20 @@
-export default function ProductCard({ product }: { product: any }) {
+"use client";
+
+export default function ProductCard({
+  product,
+  onOpen,
+}: {
+  product: any;
+  onOpen: (slug: string) => void;
+}) {
   const slug = product?.slug;
-  const content = product?.content ?? {}; // ✅ FIX: define content
+  const content = product?.content ?? {};
 
   if (!slug) {
     return (
       <div style={{ border: "2px solid red", padding: 12, borderRadius: 12 }}>
         <b>Product missing slug</b>
-        <pre style={{ whiteSpace: "pre-wrap" }}>
-          {JSON.stringify(product, null, 2)}
-        </pre>
+        <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(product, null, 2)}</pre>
       </div>
     );
   }
@@ -17,19 +23,21 @@ export default function ProductCard({ product }: { product: any }) {
   const price = content?.price_pln;
   const photos = content?.photos || [];
   const img = photos?.[0]?.filename;
-
-  // status: true = available, false = sold
   const available = content?.status !== false;
 
   return (
-    <a
-      href={`/store/${encodeURIComponent(slug)}`}
+    <button
+      type="button"
+      onClick={() => onOpen(slug)}
       style={{
         display: "block",
+        width: "100%",
+        textAlign: "left",
         border: "1px solid #eee",
         borderRadius: 14,
         padding: 12,
-        textDecoration: "none",
+        background: "#fff",
+        cursor: "pointer",
         color: "inherit",
         opacity: available ? 1 : 0.7,
       }}
@@ -56,9 +64,11 @@ export default function ProductCard({ product }: { product: any }) {
 
         {!available && <div style={{ color: "#b00", fontWeight: 800 }}>Sold</div>}
       </div>
-    </a>
+    </button>
   );
 }
+
+
 
 
 
