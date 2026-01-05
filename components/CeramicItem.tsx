@@ -37,42 +37,44 @@ export default function CeramicItem({
       ? rawSlug.split("/").filter(Boolean).pop() ?? rawSlug
       : title;
 
-  const handleCheckout = async () => {
-    if (!available || price == null || Number.isNaN(price)) return;
+const handleCheckout = async () => {
+  if (!available || price == null || Number.isNaN(price)) return;
 
-    setIsLoading(true);
-    setErrorMessage(null);
-    setAddedMessage(null);
+  setIsLoading(true);
+  setErrorMessage(null);
+  setAddedMessage(null);
 
-    try {
-      const response = await fetch("/api/checkout/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: [
-            {
-              productSlug,
-              productName: title,
-              pricePLN: price,
-            },
-          ],
-        }),
-      });
+  try {
+    const response = await fetch("/api/checkout/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: [
+          {
+            productSlug,
+            productName: title,
+            pricePLN: price,
+            quantity, // ✅ NEW
+          },
+        ],
+      }),
+    });
 
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) {
-        setErrorMessage(data.error ?? "Unable to start checkout.");
-        setIsLoading(false);
-        return;
-      }
-
-      window.location.href = data.url;
-    } catch (error) {
-      console.error("Checkout error:", error);
-      setErrorMessage("Unable to start checkout.");
+    const data = (await response.json()) as { url?: string; error?: string };
+    if (!response.ok || !data.url) {
+      setErrorMessage(data.error ?? "Unable to start checkout.");
       setIsLoading(false);
+      return;
     }
-  };
+
+    window.location.href = data.url;
+  } catch (error) {
+    console.error("Checkout error:", error);
+    setErrorMessage("Unable to start checkout.");
+    setIsLoading(false);
+  }
+};
+
 
   const handleAddToCart = () => {
     if (!available || price == null || Number.isNaN(price)) return;
@@ -256,3 +258,4 @@ export default function CeramicItem({
     </main>
   );
 }
+
