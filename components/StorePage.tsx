@@ -1,6 +1,7 @@
 import StoryblokClient from "storyblok-js-client";
 import ProductCard from "./ProductCard";
 import StoreGridClient from "./StoreGridClient";
+import { redis } from "@/lib/redis";
 
 export default async function StorePage({ blok }: { blok: any }) {
   const token = process.env.STORYBLOK_TOKEN;
@@ -53,6 +54,7 @@ return (
     <StoreGridClient products={productsWithAvailability} />
   </section>
 )}
+
 
 
 
