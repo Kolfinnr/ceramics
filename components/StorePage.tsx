@@ -52,7 +52,8 @@ return (
 
     <StoreGridClient products={productsWithAvailability} />
   </section>
-);
+)
+
 
 
 
