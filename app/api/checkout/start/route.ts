@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { redis } from "@/lib/redis"; // <- use your existing Upstash client
+function getOrigin(req: Request) {
+  const proto = req.headers.get("x-forwarded-proto") ?? "http";
+  const host =
+    req.headers.get("x-forwarded-host") ??
+    req.headers.get("host");
+
+  if (!host) throw new Error("Missing Host header");
+  return `${proto}://${host}`;
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   // If this causes issues, remove the apiVersion line
@@ -84,7 +93,7 @@ export async function POST(req: Request) {
       lockedKeys.push(lockKey);
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL!;
+    const siteUrl = getOrigin(req);
     const productSlugs = items.map((item) => item.productSlug);
     const primarySlug = productSlugs[0];
     const session = await stripe.checkout.sessions.create({
@@ -120,4 +129,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
 
