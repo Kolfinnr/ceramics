@@ -2,10 +2,16 @@
 
 import { useMemo, useState } from "react";
 import ProductCard from "./ProductCard";
+import CeramicItem from "./CeramicItem";
 
 export default function StoreGridClient({ products }: { products: any[] }) {
   const [showSold, setShowSold] = useState(false);
   const [category, setCategory] = useState<string>("all");
+
+  const [openSlug, setOpenSlug] = useState<string | null>(null);
+  const [openStory, setOpenStory] = useState<any | null>(null);
+  const [loadingStory, setLoadingStory] = useState(false);
+  const [storyError, setStoryError] = useState<string | null>(null);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -27,6 +33,38 @@ export default function StoreGridClient({ products }: { products: any[] }) {
       return true;
     });
   }, [products, showSold, category]);
+
+  const closeModal = () => {
+    setOpenSlug(null);
+    setOpenStory(null);
+    setStoryError(null);
+    setLoadingStory(false);
+  };
+
+  const openModal = async (slug: string) => {
+    setOpenSlug(slug);
+    setOpenStory(null);
+    setStoryError(null);
+    setLoadingStory(true);
+
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(slug)}`);
+      const raw = await res.text();
+
+      if (!res.ok) {
+        setStoryError(raw);
+        setLoadingStory(false);
+        return;
+      }
+
+      const json = JSON.parse(raw);
+      setOpenStory(json.story ?? null);
+      setLoadingStory(false);
+    } catch (e: any) {
+      setStoryError(String(e?.message ?? e));
+      setLoadingStory(false);
+    }
+  };
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -78,10 +116,80 @@ export default function StoreGridClient({ products }: { products: any[] }) {
         }}
       >
         {filtered.map((p: any) => (
-  <ProductCard key={p.uuid ?? p.slug} product={p} />
-))}
+          <ProductCard key={p.uuid ?? p.slug} product={p} onOpen={openModal} />
+        ))}
       </div>
+
+      {/* Modal */}
+      {openSlug && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={closeModal}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            zIndex: 1000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(1100px, 100%)",
+              maxHeight: "90vh",
+              overflow: "auto",
+              background: "#fff",
+              borderRadius: 16,
+              border: "1px solid #eee",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: 12,
+                borderBottom: "1px solid #eee",
+                position: "sticky",
+                top: 0,
+                background: "#fff",
+                zIndex: 1,
+              }}
+            >
+              <strong style={{ paddingLeft: 4 }}>
+                {openStory?.name ?? `Item: ${openSlug}`}
+              </strong>
+              <button
+                onClick={closeModal}
+                style={{
+                  border: "1px solid #ddd",
+                  background: "#fff",
+                  borderRadius: 10,
+                  padding: "8px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            {loadingStory && <div style={{ padding: 16 }}>Loading…</div>}
+
+            {storyError && (
+              <div style={{ padding: 16, color: "#b00" }}>
+                Failed to load product.<pre style={{ whiteSpace: "pre-wrap" }}>{storyError}</pre>
+              </div>
+            )}
+
+            {openStory && <CeramicItem story={openStory} />}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
