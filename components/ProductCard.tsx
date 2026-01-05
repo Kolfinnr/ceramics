@@ -1,17 +1,11 @@
 export default function ProductCard({ product }: { product: any }) {
-  const content = product?.content ?? {};
-
-  // Storyblok can give slug OR full_slug (e.g. "products/castle1")
-  const rawSlug = product?.slug ?? product?.full_slug ?? null;
-  const slug =
-    typeof rawSlug === "string"
-      ? rawSlug.split("/").filter(Boolean).pop()
-      : null;
+  const slug = product?.slug;
 
   if (!slug) {
     return (
-      <div style={{ padding: 12, border: "1px solid red" }}>
-        Missing slug for product: {product?.name ?? "(no name)"}
+      <div style={{ border: "2px solid red", padding: 12, borderRadius: 12 }}>
+        <b>Product missing slug</b>
+        <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(product, null, 2)}</pre>
       </div>
     );
   }
@@ -59,6 +53,7 @@ export default function ProductCard({ product }: { product: any }) {
     </a>
   );
 }
+
 
 
 
