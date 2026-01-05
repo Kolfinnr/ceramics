@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import CeramicItem from "../../../components/CeramicItem"; // <-- adjust if your path differs
+import CeramicItem from "../../../components/CeramicItem";
 
 export const revalidate = 60;
 
@@ -13,37 +13,29 @@ export default async function StoreItemPage({
   const token = process.env.STORYBLOK_TOKEN?.trim();
   if (!token) return <main style={{ padding: 40 }}>Missing STORYBLOK_TOKEN</main>;
 
-  // 1) Find the product anywhere under products/ by matching slug
-  const listUrl =
-    `https://api.storyblok.com/v2/cdn/stories` +
-    `?version=published` +
-    `&token=${encodeURIComponent(token)}` +
-    `&starts_with=products/` +
-    `&is_startpage=false` +
-    `&per_page=100` +
-    `&filter_query[slug][in]=${encodeURIComponent(slug)}`;
+  // DIRECT: products/<slug>
+  const url =
+    `https://api.storyblok.com/v2/cdn/stories/products/${encodeURIComponent(slug)}` +
+    `?version=published&token=${encodeURIComponent(token)}`;
 
-  const listRes = await fetch(listUrl, { next: { revalidate } });
+  const res = await fetch(url, { next: { revalidate } });
 
-  if (listRes.status === 404) return notFound();
+  if (res.status === 404) return notFound();
 
-  const listRaw = await listRes.text();
-  if (!listRes.ok) throw new Error(`Storyblok list ${listRes.status}: ${listRaw}`);
+  const raw = await res.text();
+  if (!res.ok) throw new Error(`Storyblok ${res.status}: ${raw}`);
 
-  const listData = JSON.parse(listRaw);
-  const story = listData?.stories?.[0];
+  const data = JSON.parse(raw);
+  const blok = data?.story?.content;
 
-  if (!story) return notFound();
+  if (!blok) return notFound();
 
-  // 2) Render the product
-  // story.content is the blok (component: CeramicItem etc.)
   return (
     <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
-      <CeramicItem blok={story.content} />
+      <CeramicItem blok={blok} />
     </main>
   );
 }
-
 
 
 
