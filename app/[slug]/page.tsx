@@ -1,4 +1,4 @@
-import BlockRenderer from ../../components/BlockRenderer"; // adjust if your components folder differs
+import BlockRenderer from ../../../components/BlockRenderer"; // adjust if your components folder differs
 import { notFound } from "next/navigation";
 
 export const revalidate = 60;
@@ -56,6 +56,7 @@ export default async function DynamicPage({
     </main>
   );
 }
+
 
 
 
