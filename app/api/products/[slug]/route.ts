@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  _req: Request,
-  { params }: { params: { slug: string } }
+  _req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
 ) {
-  const slug = params.slug;
-  const token = process.env.STORYBLOK_TOKEN?.trim();
+  const { slug } = await context.params;
 
+  const token = process.env.STORYBLOK_TOKEN?.trim();
   if (!token) {
     return NextResponse.json({ error: "Missing STORYBLOK_TOKEN" }, { status: 500 });
-  }
+    }
 
   const url =
     `https://api.storyblok.com/v2/cdn/stories/products/${encodeURIComponent(slug)}` +
