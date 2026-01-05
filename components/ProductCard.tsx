@@ -1,11 +1,14 @@
 export default function ProductCard({ product }: { product: any }) {
   const slug = product?.slug;
+  const content = product?.content ?? {}; // ✅ FIX: define content
 
   if (!slug) {
     return (
       <div style={{ border: "2px solid red", padding: 12, borderRadius: 12 }}>
         <b>Product missing slug</b>
-        <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(product, null, 2)}</pre>
+        <pre style={{ whiteSpace: "pre-wrap" }}>
+          {JSON.stringify(product, null, 2)}
+        </pre>
       </div>
     );
   }
@@ -14,6 +17,8 @@ export default function ProductCard({ product }: { product: any }) {
   const price = content?.price_pln;
   const photos = content?.photos || [];
   const img = photos?.[0]?.filename;
+
+  // status: true = available, false = sold
   const available = content?.status !== false;
 
   return (
@@ -30,6 +35,7 @@ export default function ProductCard({ product }: { product: any }) {
       }}
     >
       {img && (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={img}
           alt={photos?.[0]?.alt || ""}
@@ -53,6 +59,7 @@ export default function ProductCard({ product }: { product: any }) {
     </a>
   );
 }
+
 
 
 
