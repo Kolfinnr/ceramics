@@ -77,8 +77,10 @@ export default function StoreGridClient({ products }: { products: any[] }) {
           gap: 16,
         }}
       >
-{filtered.map((p: any) => (
-  <ProductCard key={p.uuid ?? p.id ?? p.full_slug ?? p.name} product={p} />
-))}
-
-
+        {filtered.map((p: any) => (
+          <ProductCard key={p.uuid ?? p.id ?? p.full_slug ?? p.name} product={p} />
+        ))}
+      </div>
+    </div>
+  );
+}
