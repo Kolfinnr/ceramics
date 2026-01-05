@@ -24,17 +24,35 @@ const products = (data.stories ?? [])
   // normalize the shape so ProductCard always receives { slug, name, content, uuid }
   .map((p: any) => ({
     uuid: p.uuid,
-    slug: p.slug,         // <- MUST exist
+    slug: p.slug, // <- MUST exist
     name: p.name,
     content: p.content,
   }));
+
+// ✅ Overlay "sold" state from Redis onto normalized products
+const productsWithAvailability = await Promise.all(
+  products.map(async (p: any) => {
+    const sold =
+      (await redis.get<string>(`status:product:${p.slug}`)) === "sold";
+
+    return {
+      ...p,
+      content: {
+        ...(p.content ?? {}),
+        // If sold in Redis, force status=false (your UI already greys out when status === false)
+        status: sold ? false : (p.content?.status ?? true),
+      },
+    };
+  })
+);
 
 return (
   <section style={{ padding: "40px 0" }}>
     <h1 style={{ fontSize: 40, margin: 0 }}>{blok?.title || "Store"}</h1>
 
-    <StoreGridClient products={products} />
+    <StoreGridClient products={productsWithAvailability} />
   </section>
 );
-}
+
+
 
