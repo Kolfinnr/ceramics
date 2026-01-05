@@ -14,8 +14,16 @@ function getOrigin(req: Request) {
 
   return `${proto}://${host}`;
 }
+const delivery = "delivery" in body ? (body as any).delivery : null;
+const deliveryMethod = delivery?.method === "inpost" ? "inpost" : "courier";
+const inpostPoint = deliveryMethod === "inpost" ? delivery?.inpostPoint : null;
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+metadata: {
+  ...existingMetadata,
+  deliveryMethod,
+  inpostPoint: inpostPoint ? JSON.stringify(inpostPoint) : "",
+},
 
 type ReqItem = {
   productSlug: string;
@@ -172,6 +180,7 @@ export async function POST(req: Request) {
   },
 }),
 }
+
 
 
 
