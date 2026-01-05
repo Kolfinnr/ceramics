@@ -164,6 +164,14 @@ export async function POST(req: Request) {
     console.error(e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
+  body: JSON.stringify({
+  items: cartItems,
+  delivery: {
+    method: deliveryMethod,
+    inpostPoint: deliveryMethod === "inpost" ? inpostPoint : null,
+  },
+}),
 }
+
 
 
