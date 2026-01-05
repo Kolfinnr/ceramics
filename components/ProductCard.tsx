@@ -1,18 +1,14 @@
 export default function ProductCard({ product }: { product: any }) {
   const content = product?.content ?? {};
-  const rawSlug =
-    product?.slug ??
-    product?.full_slug ??
-    content?.slug ??
-    null;
 
+  // Storyblok can give slug OR full_slug (e.g. "products/castle1")
+  const rawSlug = product?.slug ?? product?.full_slug ?? null;
   const slug =
     typeof rawSlug === "string"
       ? rawSlug.split("/").filter(Boolean).pop()
       : null;
 
   if (!slug) {
-    // This will make the bug obvious in UI instead of quietly generating /undefined
     return (
       <div style={{ padding: 12, border: "1px solid red" }}>
         Missing slug for product: {product?.name ?? "(no name)"}
@@ -28,7 +24,7 @@ export default function ProductCard({ product }: { product: any }) {
 
   return (
     <a
-      href={`/store/${slug}`}
+      href={`/store/${encodeURIComponent(slug)}`}
       style={{
         display: "block",
         border: "1px solid #eee",
@@ -63,4 +59,6 @@ export default function ProductCard({ product }: { product: any }) {
     </a>
   );
 }
+
+
 
