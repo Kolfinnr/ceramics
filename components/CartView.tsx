@@ -13,6 +13,12 @@ export default function CartView() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+const [deliveryMethod, setDeliveryMethod] = useState<"courier" | "inpost">("courier");
+const [inpostPoint, setInpostPoint] = useState<any | null>(null);
+const [pickerOpen, setPickerOpen] = useState(false);
+
+const needsPoint = deliveryMethod === "inpost";
+const canCheckout = !needsPoint || !!inpostPoint;
 
   useEffect(() => {
     setItems(readCart());
@@ -164,6 +170,47 @@ export default function CartView() {
                   cursor: "pointer",
                   fontWeight: 700,
                 }}
+              <div style={{ display: "grid", gap: 10 }}>
+  <div style={{ fontWeight: 800 }}>Delivery</div>
+
+  <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+    <input
+      type="radio"
+      checked={deliveryMethod === "courier"}
+      onChange={() => { setDeliveryMethod("courier"); setInpostPoint(null); }}
+    />
+    Courier (delivery to address)
+  </label>
+
+  <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+    <input
+      type="radio"
+      checked={deliveryMethod === "inpost"}
+      onChange={() => setDeliveryMethod("inpost")}
+    />
+    InPost Paczkomat
+  </label>
+
+  {deliveryMethod === "inpost" && (
+    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <button onClick={() => setPickerOpen(true)}>
+        {inpostPoint ? "Change Paczkomat" : "Choose Paczkomat"}
+      </button>
+
+      {inpostPoint && (
+        <div style={{ color: "#444" }}>
+          Selected: <strong>{inpostPoint?.name ?? inpostPoint?.id ?? "Paczkomat"}</strong>
+        </div>
+      )}
+    </div>
+  )}
+</div>
+
+<InpostPointPickerModal
+  open={pickerOpen}
+  onClose={() => setPickerOpen(false)}
+  onSelect={(p) => setInpostPoint(p)}
+/>
               >
                 Clear cart
               </button>
@@ -173,7 +220,8 @@ export default function CartView() {
             )}
           </div>
         </>
-      )}
+      )
+      }
     </section>
   );
 }
