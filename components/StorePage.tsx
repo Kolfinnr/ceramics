@@ -36,3 +36,5 @@ return (
     <StoreGridClient products={products} />
   </section>
 );
+}
+
