@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { render } from "storyblok-rich-text-react-renderer";
 import { addToCart } from "@/lib/cart-storage";
 
@@ -23,8 +23,28 @@ export default function CeramicItem({
         : null;
 
   const photos = c.photos || [];
-  const available = c.status !== false && !isRedisSold; // false = sold
+  // "status === false" means you manually disabled it in Storyblok.
+// Redis sold should NOT block purchase anymore if you allow made-to-order.
+const available = c.status !== false;
+
   const categories = Array.isArray(c.category) ? c.category : [];
+  const pcsRaw = c.pcs;
+  const pcs = useMemo(() => {
+    const n =
+      typeof pcsRaw === "number"
+        ? pcsRaw
+        : typeof pcsRaw === "string"
+          ? Number(pcsRaw)
+          : 0;
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  }, [pcsRaw]);
+
+  const [quantity, setQuantity] = useState<number>(1);
+
+  // Backorder means customer wants more than ready stock
+  const isBackorder = quantity > pcs;
+
+  const MAX_QTY = 50; // soft safety cap so people don't accidentally type 5000
 
   const main = photos?.[0]?.filename;
   const rest = photos?.slice(1) ?? [];
@@ -192,6 +212,51 @@ const handleCheckout = async () => {
           <div style={{ fontSize: 16, lineHeight: 1.7, color: "#222" }}>
             {c.description ? render(c.description) : <p>(No description yet.)</p>}
           </div>
+          {/* Stock / quantity */}
+          <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ fontWeight: 700 }}>Available now</div>
+              <div style={{ color: "#444" }}>
+                <strong>{pcs}</strong> pcs
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <label style={{ fontWeight: 700, minWidth: 90 }}>Quantity</label>
+              <input
+                type="number"
+                min={1}
+                max={MAX_QTY}
+                value={quantity}
+                onChange={(e) => {
+                  const v = Math.floor(Number(e.target.value) || 1);
+                  setQuantity(Math.max(1, Math.min(MAX_QTY, v)));
+                }}
+                style={{
+                  width: 100,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid #ddd",
+                }}
+              />
+            </div>
+
+            {isBackorder && (
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 12,
+                  border: "1px solid #f2c200",
+                  background: "#fff9db",
+                  color: "#5a4600",
+                  fontWeight: 700,
+                }}
+              >
+                You selected more than we currently have ready. The extra pieces may take{" "}
+                <strong>2–3 business weeks</strong> to make.
+              </div>
+            )}
+          </div>
 
           {/* Purchase actions */}
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #eee" }}>
@@ -258,4 +323,5 @@ const handleCheckout = async () => {
     </main>
   );
 }
+
 
