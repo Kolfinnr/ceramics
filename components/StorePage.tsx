@@ -53,9 +53,47 @@ return (
 
     <StoreGridClient products={productsWithAvailability} />
   </section>
+)
+const products = (data.stories ?? [])
+  .filter((p: any) => typeof p?.slug === "string" && p.slug.length > 0)
+  .map((p: any) => ({
+    uuid: p.uuid,
+    slug: p.slug,
+    name: p.name,
+    content: p.content,
+  }));
+
+const productsWithStock = await Promise.all(
+  products.map(async (p: any) => {
+    const stockKey = `stock:product:${p.slug}`;
+
+    // read current stock
+    let stock = await redis.get<number>(stockKey);
+
+    // if not initialized in Redis, seed from Storyblok pcs
+    if (stock === null || stock === undefined) {
+      const seeded = Number(p.content?.pcs ?? 1);
+      stock = Number.isFinite(seeded) ? seeded : 1;
+      await redis.set(stockKey, stock);
+    }
+
+    return {
+      ...p,
+      content: {
+        ...(p.content ?? {}),
+        // override pcs shown to customer with Redis stock
+        pcs: stock,
+      },
+    };
+  })
+);
+
+return (
+  <section style={{ padding: "40px 0" }}>
+    <h1 style={{ fontSize: 40, margin: 0 }}>{blok?.title || "Store"}</h1>
+    <StoreGridClient products={productsWithStock} />
+  </section>
 )}
-
-
 
 
 
