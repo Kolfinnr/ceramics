@@ -6,6 +6,10 @@ import { createOrderStory } from "@/lib/storyblok-management";
 export const runtime = "nodejs"; // required for Stripe signature verification reliability
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const deliveryMethod = session.metadata?.deliveryMethod ?? "courier";
+const inpostPoint = session.metadata?.inpostPoint
+  ? JSON.parse(session.metadata.inpostPoint)
+  : null;
 
 function safeParseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback;
@@ -153,6 +157,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }
+
 
 
 
