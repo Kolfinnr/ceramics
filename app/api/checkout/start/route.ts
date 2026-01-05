@@ -6,7 +6,7 @@ function getOrigin(req: Request) {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   if (!host) throw new Error("Missing Host header");
 
-  // Force https in production to keep Stripe happy and avoid weird proxy cases
+  // Force https in production
   const proto =
     process.env.NODE_ENV === "production"
       ? "https"
@@ -30,8 +30,8 @@ type ReqBody =
       items?: ReqItem[];
     };
 
-// Atomic reserve script: reserve up to requested qty from stock key, decrementing stock.
-// Returns reserved amount (0..requested).
+// Reserve up to `want` units from stock key, decrementing stock atomically.
+// Returns reserved amount (0..want).
 const RESERVE_LUA = `
 local key = KEYS[1]
 local want = tonumber(ARGV[1]) or 0
@@ -48,8 +48,6 @@ return take
 `;
 
 export async function POST(req: Request) {
-  // We will "reserve" stock immediately, then create Stripe session.
-  // If Stripe fails, we roll back reservations.
   const reservedInStockBySlug: Record<string, number> = {};
 
   try {
@@ -69,7 +67,7 @@ export async function POST(req: Request) {
             ]
           : [];
 
-    // Validate
+    // Validate items
     const invalid = items.find((i) => {
       const q = Number(i.quantity);
       return (
@@ -78,12 +76,12 @@ export async function POST(req: Request) {
         typeof i.pricePLN !== "number" ||
         Number.isNaN(i.pricePLN) ||
         !Number.isFinite(q) ||
-        q < 1 ||
-        !Number.isInteger(q)
+        !Number.isInteger(q) ||
+        q < 1
       );
     });
 
-    // prevent duplicate slugs in one request (simplifies inventory ops)
+    // no duplicate slugs in one request (simplifies stock math)
     const uniqueSlugs = new Set(items.map((i) => i.productSlug));
     if (items.length === 0 || invalid || uniqueSlugs.size !== items.length) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -92,11 +90,10 @@ export async function POST(req: Request) {
     const lockTtlSeconds = 30 * 60;
     const siteUrl = getOrigin(req);
 
-    // Reserve in-stock units in Redis (does NOT block backorder)
-    // stock key name: stock:product:<slug>
-    const backorderBySlug: Record<string, number> = {};
     const qtyBySlug: Record<string, number> = {};
+    const backorderBySlug: Record<string, number> = {};
 
+    // Reserve in-stock units (allow backorder)
     for (const item of items) {
       const slug = item.productSlug;
       const want = item.quantity;
@@ -105,23 +102,21 @@ export async function POST(req: Request) {
 
       const stockKey = `stock:product:${slug}`;
 
-      // If stock key doesn't exist, treat as 0 in stock (all becomes backorder).
-      // (Store page should seed stock keys from Storyblok, but this keeps API robust.)
-      const reserved = await (redis as any).eval?.(RESERVE_LUA, [stockKey], [String(want)]);
-      // If your redis client doesn't support eval, you'll see a runtime error.
-      // Tell me the exact error and I’ll adjust to the correct Upstash method name.
+      // If stock key is missing, treat it as 0 in stock (all backorder).
+      // Your Store page should seed it from Storyblok pcs, but this keeps API robust.
+      const reservedRaw = await redis.eval(RESERVE_LUA, [stockKey], [String(want)]);
+      const reserved = Number(reservedRaw ?? 0);
 
-      const reservedNum = typeof reserved === "number" ? reserved : Number(reserved ?? 0);
-      reservedInStockBySlug[slug] = reservedNum;
+      reservedInStockBySlug[slug] = reserved;
 
-      const backorder = Math.max(0, want - reservedNum);
+      const backorder = Math.max(0, want - reserved);
       if (backorder > 0) backorderBySlug[slug] = backorder;
     }
 
+    // Create Stripe session
     const productSlugs = items.map((i) => i.productSlug);
     const primarySlug = productSlugs[0];
 
-    // Create Stripe checkout
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: items.map((item) => ({
@@ -130,7 +125,7 @@ export async function POST(req: Request) {
           unit_amount: Math.round(item.pricePLN * 100),
           product_data: { name: item.productName },
         },
-        quantity: item.quantity, // ✅ now supports multiple pcs
+        quantity: item.quantity,
       })),
       shipping_address_collection: { allowed_countries: ["PL", "CZ", "DE", "SK", "AT"] },
       phone_number_collection: { enabled: true },
@@ -140,13 +135,13 @@ export async function POST(req: Request) {
       metadata: {
         productSlug: primarySlug,
         productSlugs: JSON.stringify(productSlugs),
-        quantities: JSON.stringify(qtyBySlug),                // ✅ what customer ordered
-        reservedInStock: JSON.stringify(reservedInStockBySlug), // ✅ what we reserved
-        backorder: JSON.stringify(backorderBySlug),           // ✅ what exceeded stock
+        quantities: JSON.stringify(qtyBySlug),
+        reservedInStock: JSON.stringify(reservedInStockBySlug),
+        backorder: JSON.stringify(backorderBySlug),
       },
     });
 
-    // Store reservation record so webhook can restore stock if session expires/fails
+    // Store reservation record so webhook can restore stock on expire/fail
     await redis.set(
       `reserve:session:${session.id}`,
       JSON.stringify({ reservedInStockBySlug }),
@@ -155,10 +150,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: session.url }, { status: 200 });
   } catch (e: any) {
-    // Roll back reserved stock if anything failed AFTER reserving
+    // Roll back reserved stock if Stripe/session creation failed
     try {
-      const entries = Object.entries(reservedInStockBySlug);
-      for (const [slug, reserved] of entries) {
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
         if (reserved > 0) {
           await redis.incrby(`stock:product:${slug}`, reserved);
         }
