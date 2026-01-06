@@ -45,11 +45,14 @@ type ReqBody =
       items?: ReqItem[];
       // New fields from CartView:
       deliveryMethod?: "courier" | "inpost";
-      inpostPoint?: any;
+      inpostPoint?: unknown;
 
       // Back-compat if you used "delivery" earlier:
-      delivery?: { method?: "courier" | "inpost"; inpostPoint?: any };
+      delivery?: { method?: "courier" | "inpost"; inpostPoint?: unknown };
     };
+
+const isSingleItem = (value: ReqBody): value is ReqItem =>
+  typeof (value as ReqItem).productSlug === "string";
 
 export async function POST(req: Request) {
   const reservedInStockBySlug: Record<string, number> = {};
@@ -59,27 +62,26 @@ export async function POST(req: Request) {
 
     // Accept both formats:
     const deliveryMethod: "courier" | "inpost" =
-      (typeof (body as any).deliveryMethod === "string"
-        ? (body as any).deliveryMethod
-        : (body as any).delivery?.method) === "inpost"
+      ("deliveryMethod" in body && body.deliveryMethod === "inpost") ||
+      ("delivery" in body && body.delivery?.method === "inpost")
         ? "inpost"
         : "courier";
 
+    const directPoint = "inpostPoint" in body ? body.inpostPoint : null;
+    const legacyPoint = "delivery" in body ? body.delivery?.inpostPoint : null;
     const inpostPoint =
-      deliveryMethod === "inpost"
-        ? (body as any).inpostPoint ?? (body as any).delivery?.inpostPoint ?? null
-        : null;
+      deliveryMethod === "inpost" ? directPoint ?? legacyPoint ?? null : null;
 
     const items: ReqItem[] =
       "items" in body && Array.isArray(body.items) && body.items.length > 0
         ? body.items
-        : "productSlug" in body
+        : isSingleItem(body)
           ? [
               {
                 productSlug: body.productSlug,
                 productName: body.productName,
                 pricePLN: body.pricePLN,
-                quantity: (body as ReqItem).quantity ?? 1,
+                quantity: body.quantity ?? 1,
               },
             ]
           : [];
@@ -172,7 +174,7 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({ url: session.url }, { status: 200 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Roll back reserved stock if Stripe/session creation failed
     try {
       for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
@@ -186,7 +188,7 @@ export async function POST(req: Request) {
 
     console.error(e);
     return NextResponse.json(
-      { error: e?.message ?? "Server error" },
+      { error: e instanceof Error ? e.message : "Server error" },
       { status: 500 }
     );
   }

@@ -1,17 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { render } from "storyblok-rich-text-react-renderer";
 import { addToCart } from "@/lib/cart-storage";
+import { ProductContent, ProductStory, StoryblokImage } from "@/lib/storyblok-types";
 
 export default function CeramicItem({
   story,
-  isRedisSold = false,
 }: {
-  story: any;
-  isRedisSold?: boolean;
+  story: ProductStory;
 }) {
-  const c = story?.content ?? {};
+  const c = story?.content ?? ({} as ProductContent);
 
   const title = c.name || story?.name || "Product";
   const priceRaw = c.price_pln;
@@ -22,14 +22,14 @@ export default function CeramicItem({
         ? Number(priceRaw.replace(",", "."))
         : null;
 
-  const photos = c.photos || [];
+  const photos = Array.isArray(c.photos) ? c.photos : [];
   // "status === false" means you manually disabled it in Storyblok.
 // Redis sold should NOT block purchase anymore if you allow made-to-order.
-const available = c.status !== false;
+  const available = c.status !== false;
 
   const categories = Array.isArray(c.category) ? c.category : [];
   const pcsRaw = c.pcs;
-  const pcs = useMemo(() => {
+  const pcs = (() => {
     const n =
       typeof pcsRaw === "number"
         ? pcsRaw
@@ -37,7 +37,7 @@ const available = c.status !== false;
           ? Number(pcsRaw)
           : 0;
     return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
-  }, [pcsRaw]);
+  })();
 
   const [quantity, setQuantity] = useState<number>(1);
 
@@ -57,43 +57,43 @@ const available = c.status !== false;
       ? rawSlug.split("/").filter(Boolean).pop() ?? rawSlug
       : title;
 
-const handleCheckout = async () => {
-  if (!available || price == null || Number.isNaN(price)) return;
+  const handleCheckout = async () => {
+    if (!available || price == null || Number.isNaN(price)) return;
 
-  setIsLoading(true);
-  setErrorMessage(null);
-  setAddedMessage(null);
+    setIsLoading(true);
+    setErrorMessage(null);
+    setAddedMessage(null);
 
-  try {
-    const response = await fetch("/api/checkout/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        items: [
-          {
-            productSlug,
-            productName: title,
-            pricePLN: price,
-            quantity, // ✅ NEW
-          },
-        ],
-      }),
-    });
+    try {
+      const response = await fetch("/api/checkout/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [
+            {
+              productSlug,
+              productName: title,
+              pricePLN: price,
+              quantity, // ✅ NEW
+            },
+          ],
+        }),
+      });
 
-    const data = (await response.json()) as { url?: string; error?: string };
-    if (!response.ok || !data.url) {
-      setErrorMessage(data.error ?? "Unable to start checkout.");
+      const data = (await response.json()) as { url?: string; error?: string };
+      if (!response.ok || !data.url) {
+        setErrorMessage(data.error ?? "Unable to start checkout.");
+        setIsLoading(false);
+        return;
+      }
+
+      window.location.assign(data.url);
+    } catch (error) {
+      console.error("Checkout error:", error);
+      setErrorMessage("Unable to start checkout.");
       setIsLoading(false);
-      return;
     }
-
-    window.location.href = data.url;
-  } catch (error) {
-    console.error("Checkout error:", error);
-    setErrorMessage("Unable to start checkout.");
-    setIsLoading(false);
-  }
-};
+  };
 
 
   const handleAddToCart = () => {
@@ -179,7 +179,7 @@ const handleCheckout = async () => {
                 gap: 10,
               }}
             >
-              {rest.map((p: any) => (
+              {rest.map((p: StoryblokImage) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={p.id || p.filename}
@@ -298,9 +298,9 @@ const handleCheckout = async () => {
             {addedMessage && (
               <p style={{ marginTop: 10, color: "#1a7f37", fontWeight: 600 }}>
                 {addedMessage}{" "}
-                <a href="/cart" style={{ color: "#1a7f37" }}>
+                <Link href="/cart" style={{ color: "#1a7f37" }}>
                   View cart
-                </a>
+                </Link>
               </p>
             )}
             {errorMessage && (

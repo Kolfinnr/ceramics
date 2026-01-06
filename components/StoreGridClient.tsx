@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import ProductCard from "./ProductCard";
 import CeramicItem from "./CeramicItem";
+import { ProductStory } from "@/lib/storyblok-types";
 
-export default function StoreGridClient({ products }: { products: any[] }) {
+export default function StoreGridClient({ products }: { products: ProductStory[] }) {
   const [showSold, setShowSold] = useState(false);
   const [category, setCategory] = useState<string>("all");
 
   const [openSlug, setOpenSlug] = useState<string | null>(null);
-  const [openStory, setOpenStory] = useState<any | null>(null);
+  const [openStory, setOpenStory] = useState<ProductStory | null>(null);
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
 
@@ -60,8 +61,9 @@ export default function StoreGridClient({ products }: { products: any[] }) {
       const json = JSON.parse(raw);
       setOpenStory(json.story ?? null);
       setLoadingStory(false);
-    } catch (e: any) {
-      setStoryError(String(e?.message ?? e));
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      setStoryError(message);
       setLoadingStory(false);
     }
   };
@@ -115,7 +117,7 @@ export default function StoreGridClient({ products }: { products: any[] }) {
           gap: 16,
         }}
       >
-        {filtered.map((p: any) => (
+        {filtered.map((p) => (
           <ProductCard key={p.uuid ?? p.slug} product={p} onOpen={openModal} />
         ))}
       </div>

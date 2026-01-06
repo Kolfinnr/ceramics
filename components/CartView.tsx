@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   CartItem,
   clearCart,
@@ -15,11 +16,11 @@ type InpostPoint = {
   id?: string;
   name?: string;
   address?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 export default function CartView() {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(() => readCart());
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -31,10 +32,7 @@ export default function CartView() {
   const needsPoint = deliveryMethod === "inpost";
   const canCheckout = !needsPoint || !!inpostPoint;
 
-  useEffect(() => {
-    setItems(readCart());
-    return subscribeToCartChanges(() => setItems(readCart()));
-  }, []);
+  useEffect(() => subscribeToCartChanges(() => setItems(readCart())), []);
 
   const total = useMemo(() => {
     return items.reduce((sum, item) => sum + item.pricePLN, 0);
@@ -79,7 +77,7 @@ export default function CartView() {
         return;
       }
 
-      window.location.href = data.url;
+      window.location.assign(data.url);
     } catch (error) {
       console.error("Checkout error:", error);
       setErrorMessage("Unable to start checkout.");
@@ -132,12 +130,12 @@ export default function CartView() {
                 <div style={{ display: "grid", gap: 6 }}>
                   <strong>{item.productName}</strong>
                   <span style={{ color: "#555" }}>{item.pricePLN} PLN</span>
-                  <a
+                  <Link
                     href={`/store/${item.productSlug}`}
                     style={{ color: "#111" }}
                   >
                     View item
-                  </a>
+                  </Link>
                 </div>
 
                 <button
