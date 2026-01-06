@@ -20,6 +20,7 @@ type ReqBody = {
     productSlug: string;
     productName: string;
     pricePLN: number;
+    quantity?: number;
   }>;
   deliveryMethod: "courier" | "inpost";
   customer: CustomerInfo;
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
       productSlug: item.productSlug,
       productName: item.productName,
       pricePLN: item.pricePLN,
-      quantity: 1,
+      quantity: item.quantity && item.quantity > 0 ? item.quantity : 1,
     }));
 
     const invalid = items.find((item) => {
@@ -51,7 +52,9 @@ export async function POST(req: Request) {
         !item.productName ||
         typeof item.pricePLN !== "number" ||
         Number.isNaN(item.pricePLN) ||
-        item.pricePLN <= 0
+        item.pricePLN <= 0 ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity < 1
       );
     });
 

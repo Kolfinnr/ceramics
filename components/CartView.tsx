@@ -66,7 +66,10 @@ export default function CartView() {
   );
 
   const total = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.pricePLN, 0);
+    return items.reduce(
+      (sum, item) => sum + item.pricePLN * (item.quantity ?? 1),
+      0
+    );
   }, [items]);
 
   const handleRemove = (slug: string) => {
@@ -90,6 +93,7 @@ export default function CartView() {
             productSlug: item.productSlug,
             productName: item.productName,
             pricePLN: item.pricePLN,
+            quantity: item.quantity ?? 1,
           })),
           deliveryMethod,
           customer: {
@@ -171,7 +175,10 @@ export default function CartView() {
 
                 <div style={{ display: "grid", gap: 6 }}>
                   <strong>{item.productName}</strong>
-                  <span style={{ color: "#555" }}>{item.pricePLN} PLN</span>
+                  <span style={{ color: "#555" }}>
+                    {item.pricePLN} PLN
+                    {item.quantity ? ` · Qty ${item.quantity}` : ""}
+                  </span>
                   <Link
                     href={`/store/${item.productSlug}`}
                     style={{ color: "#111" }}
@@ -236,6 +243,18 @@ export default function CartView() {
                 />
                 InPost Paczkomat
               </label>
+              {deliveryMethod === "inpost" && (
+                <div style={{ fontSize: 13, color: "#555" }}>
+                  <a
+                    href="https://inpost.pl/znajdz-paczkomat"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "#111" }}
+                  >
+                    Sprawdź adres Paczkomatu na mapie InPost
+                  </a>
+                </div>
+              )}
             </div>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -334,7 +353,9 @@ export default function CartView() {
 
               <div style={{ display: "grid", gap: 6 }}>
                 <span style={{ fontWeight: 700 }}>
-                  {deliveryMethod === "inpost" ? "Adres Paczkomatu" : "Adres dostawy"}
+                  {deliveryMethod === "inpost"
+                    ? "Adres Paczkomatu"
+                    : "Adres dostawy"}
                 </span>
                 {deliveryMethod === "inpost" && (
                   <span style={{ fontSize: 13, color: "#555" }}>

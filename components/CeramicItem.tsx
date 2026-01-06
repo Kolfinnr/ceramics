@@ -13,7 +13,7 @@ export default function CeramicItem({
 }) {
   const c = story?.content ?? ({} as ProductContent);
 
-  const title = c.name || story?.name || "Product";
+  const title = c.name || "Product";
   const priceRaw = c.price_pln;
   const price =
     typeof priceRaw === "number"
@@ -46,8 +46,10 @@ export default function CeramicItem({
 
   const MAX_QTY = 50; // soft safety cap so people don't accidentally type 5000
 
-  const main = photos?.[0]?.filename;
-  const rest = photos?.slice(1) ?? [];
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
+  const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
+  const main = photos?.[selectedIndex]?.filename ?? photos?.[0]?.filename;
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [addedMessage, setAddedMessage] = useState<string | null>(null);
@@ -57,42 +59,17 @@ export default function CeramicItem({
       ? rawSlug.split("/").filter(Boolean).pop() ?? rawSlug
       : title;
 
-  const handleCheckout = async () => {
+  const handleBuyNow = () => {
     if (!available || price == null || Number.isNaN(price)) return;
-
+    addToCart({
+      productSlug,
+      productName: title,
+      pricePLN: price,
+      photo: main,
+      quantity,
+    });
     setIsLoading(true);
-    setErrorMessage(null);
-    setAddedMessage(null);
-
-    try {
-      const response = await fetch("/api/checkout/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: [
-            {
-              productSlug,
-              productName: title,
-              pricePLN: price,
-              quantity, // ✅ NEW
-            },
-          ],
-        }),
-      });
-
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) {
-        setErrorMessage(data.error ?? "Unable to start checkout.");
-        setIsLoading(false);
-        return;
-      }
-
-      window.location.assign(data.url);
-    } catch (error) {
-      console.error("Checkout error:", error);
-      setErrorMessage("Unable to start checkout.");
-      setIsLoading(false);
-    }
+    window.location.assign("/cart?focus=delivery");
   };
 
 
@@ -103,6 +80,7 @@ export default function CeramicItem({
       productName: title,
       pricePLN: price,
       photo: main,
+      quantity,
     });
     setAddedMessage("Added to cart.");
     setErrorMessage(null);
@@ -115,10 +93,6 @@ export default function CeramicItem({
         <h1 style={{ fontSize: 42, margin: 0, lineHeight: 1.1 }}>{title}</h1>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          {price != null && !Number.isNaN(price) && (
-            <div style={{ fontSize: 18, color: "#333" }}>{price} PLN</div>
-          )}
-
           {!available && (
             <div style={{ color: "#b00", fontWeight: 800 }}>Sold</div>
           )}
@@ -157,40 +131,64 @@ export default function CeramicItem({
         {/* Gallery */}
         <section style={{ display: "grid", gap: 12 }}>
           {main && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={main}
-              alt={photos?.[0]?.alt || ""}
+            <div
               style={{
                 width: "100%",
                 height: 520,
-                objectFit: "cover",
                 borderRadius: 16,
                 border: "1px solid #eee",
-              }}
-            />
-          )}
-
-          {rest.length > 0 && (
-            <div
-              style={{
+                background: "#fafafa",
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                gap: 10,
+                placeItems: "center",
+                overflow: "hidden",
+              }}
+              onMouseEnter={() => setZoomed(true)}
+              onMouseLeave={() => setZoomed(false)}
+              onMouseMove={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = ((event.clientX - rect.left) / rect.width) * 100;
+                const y = ((event.clientY - rect.top) / rect.height) * 100;
+                setZoomOrigin(`${x}% ${y}%`);
               }}
             >
-              {rest.map((p: StoryblokImage) => (
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={main}
+                alt={photos?.[selectedIndex]?.alt || ""}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  transition: "transform 0.2s ease",
+                  transform: zoomed ? "scale(1.4)" : "scale(1)",
+                  transformOrigin: zoomOrigin,
+                }}
+              />
+            </div>
+          )}
+
+          {photos.length > 1 && (
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                overflowX: "auto",
+              }}
+            >
+              {photos.map((p: StoryblokImage, index: number) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={p.id || p.filename}
                   src={p.filename}
                   alt={p.alt || ""}
+                  onClick={() => setSelectedIndex(index)}
                   style={{
-                    width: "100%",
-                    height: 140,
+                    width: 110,
+                    height: 110,
                     objectFit: "cover",
-                    borderRadius: 14,
-                    border: "1px solid #eee",
+                    borderRadius: 12,
+                    border: index === selectedIndex ? "2px solid #111" : "1px solid #eee",
+                    cursor: "pointer",
                   }}
                 />
               ))}
@@ -220,6 +218,10 @@ export default function CeramicItem({
                 <strong>{pcs}</strong> pcs
               </div>
             </div>
+
+            {price != null && !Number.isNaN(price) && (
+              <div style={{ fontSize: 18, color: "#333" }}>{price} PLN</div>
+            )}
 
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <label style={{ fontWeight: 700, minWidth: 90 }}>Quantity</label>
@@ -263,7 +265,7 @@ export default function CeramicItem({
             <div style={{ display: "grid", gap: 10 }}>
               <button
                 disabled={!available || isLoading}
-                onClick={handleCheckout}
+                onClick={handleBuyNow}
                 style={{
                   width: "100%",
                   padding: "12px 14px",
