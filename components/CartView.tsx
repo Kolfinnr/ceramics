@@ -14,19 +14,11 @@ import {
 
 type DeliveryMethod = "courier" | "inpost";
 
-type InpostPoint = {
-  id: string;
-  name?: string;
-  address?: string;
-  postcode?: string;
-  [key: string]: unknown;
-};
-
 type CustomerInfo = {
   email: string;
   phone: string;
   name: string;
-  address1: string;
+  street: string;
   postalCode: string;
   city: string;
 };
@@ -43,39 +35,26 @@ export default function CartView() {
 
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("courier");
-  const [inpostPoint, setInpostPoint] = useState<InpostPoint | null>(null);
   const [customer, setCustomer] = useState<CustomerInfo>({
     email: "",
     phone: "",
     name: "",
-    address1: "",
+    street: "",
     postalCode: "",
     city: "",
   });
   const resetClientSecret = () => setClientSecret(null);
 
-  const needsPoint = deliveryMethod === "inpost";
-  const inpostCode = inpostPoint?.id ?? "";
-  const hasInpostPointId = Boolean(inpostCode);
-  const canCheckout = !needsPoint || hasInpostPointId;
-  const showInpostError = needsPoint && !hasInpostPointId;
-  const inpostCodeError =
-    needsPoint && inpostCode && !/^[A-Z0-9_-]{5,20}$/.test(inpostCode);
-  const isCourierAddressValid =
-    deliveryMethod === "courier"
-      ? Boolean(
-          customer.address1.trim() &&
-            customer.city.trim() &&
-            customer.postalCode.trim()
-        )
-      : customer.postalCode.trim().length > 0;
+  const isAddressValid = Boolean(
+    customer.street.trim() &&
+      customer.city.trim() &&
+      customer.postalCode.trim()
+  );
   const canCreateIntent =
     items.length > 0 &&
-    canCheckout &&
-    !inpostCodeError &&
     customer.email.trim().length > 0 &&
     customer.phone.trim().length > 0 &&
-    isCourierAddressValid;
+    isAddressValid;
 
   useEffect(
     () =>
@@ -98,12 +77,6 @@ export default function CartView() {
   const handleCheckout = async () => {
     if (items.length === 0) return;
 
-    // If user chose InPost but did not select a locker, block checkout
-    if (!canCheckout) {
-      setErrorMessage("Please choose an InPost Paczkomat before checkout.");
-      return;
-    }
-
     setIsLoading(true);
     setErrorMessage(null);
     setIntentError(null);
@@ -119,14 +92,13 @@ export default function CartView() {
             pricePLN: item.pricePLN,
           })),
           deliveryMethod,
-          inpostPoint, // will be null for courier; OK
           customer: {
             email: customer.email,
             phone: customer.phone,
             name: customer.name,
-            address1: deliveryMethod === "courier" ? customer.address1 : "",
+            street: customer.street,
             postalCode: customer.postalCode,
-            city: deliveryMethod === "courier" ? customer.city : "",
+            city: customer.city,
             country: "PL",
           },
         }),
@@ -247,7 +219,6 @@ export default function CartView() {
                   checked={deliveryMethod === "courier"}
                   onChange={() => {
                     setDeliveryMethod("courier");
-                    setInpostPoint(null);
                     resetClientSecret();
                   }}
                 />
@@ -265,54 +236,12 @@ export default function CartView() {
                 />
                 InPost Paczkomat
               </label>
-
-              {deliveryMethod === "inpost" && (
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span>Paczkomat code *</span>
-                    <input
-                      type="text"
-                      placeholder="e.g. WAW09BAPP"
-                      value={inpostCode}
-                      onChange={(e) => {
-                        const nextValue = e.target.value.toUpperCase().trim();
-                        setInpostPoint(nextValue ? { id: nextValue } : null);
-                        resetClientSecret();
-                      }}
-                      style={inputStyle}
-                      required
-                    />
-                  </label>
-                  <div style={{ fontSize: 13, color: "#555" }}>
-                    Find the code on the{" "}
-                    <a
-                      href="https://inpost.pl/znajdz-paczkomat"
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: "#111" }}
-                    >
-                      InPost map
-                    </a>
-                    .
-                  </div>
-                </div>
-              )}
-              {showInpostError && (
-                <p style={{ color: "#b00", fontWeight: 600 }}>
-                  Enter a Paczkomat code to continue.
-                </p>
-              )}
-              {inpostCodeError && (
-                <p style={{ color: "#b00", fontWeight: 600 }}>
-                  Use a valid Paczkomat code (5–20 letters/numbers).
-                </p>
-              )}
             </div>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <button
                 onClick={handleCheckout}
-                disabled={isLoading || !canCheckout || !canCreateIntent}
+                disabled={isLoading || !canCreateIntent}
                 style={{
                   border: "1px solid #111",
                   background: "#111",
@@ -320,18 +249,14 @@ export default function CartView() {
                   borderRadius: 12,
                   padding: "12px 18px",
                   cursor:
-                    isLoading || !canCheckout || !canCreateIntent
-                      ? "not-allowed"
-                      : "pointer",
+                    isLoading || !canCreateIntent ? "not-allowed" : "pointer",
                   fontWeight: 700,
-                  opacity: isLoading || !canCheckout || !canCreateIntent ? 0.7 : 1,
+                  opacity: isLoading || !canCreateIntent ? 0.7 : 1,
                 }}
                 title={
-                  !canCheckout
-                    ? "Choose an InPost Paczkomat to continue"
-                    : !canCreateIntent
-                      ? "Complete customer details to continue"
-                      : undefined
+                  !canCreateIntent
+                    ? "Complete customer details to continue"
+                    : undefined
                 }
               >
                 {isLoading ? "Preparing payment..." : "Continue to payment"}
@@ -407,37 +332,44 @@ export default function CartView() {
                 />
               </label>
 
-              {deliveryMethod === "courier" && (
-                <>
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span>Address *</span>
-                    <input
-                      type="text"
-                      value={customer.address1}
-                      onChange={(e) => {
-                        setCustomer({ ...customer, address1: e.target.value });
-                        resetClientSecret();
-                      }}
-                      style={inputStyle}
-                      required
-                    />
-                  </label>
+              <div style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontWeight: 700 }}>
+                  {deliveryMethod === "inpost" ? "Adres Paczkomatu" : "Adres dostawy"}
+                </span>
+                {deliveryMethod === "inpost" && (
+                  <span style={{ fontSize: 13, color: "#555" }}>
+                    Wpisz adres Paczkomatu
+                  </span>
+                )}
+              </div>
 
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span>City *</span>
-                    <input
-                      type="text"
-                      value={customer.city}
-                      onChange={(e) => {
-                        setCustomer({ ...customer, city: e.target.value });
-                        resetClientSecret();
-                      }}
-                      style={inputStyle}
-                      required
-                    />
-                  </label>
-                </>
-              )}
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Street *</span>
+                <input
+                  type="text"
+                  value={customer.street}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, street: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>City *</span>
+                <input
+                  type="text"
+                  value={customer.city}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, city: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
 
               <label style={{ display: "grid", gap: 6 }}>
                 <span>Postal code *</span>

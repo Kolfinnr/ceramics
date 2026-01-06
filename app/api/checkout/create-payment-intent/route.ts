@@ -5,19 +5,11 @@ import { reserveStock, type CheckoutItem } from "@/lib/checkout-reservation";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-type InpostPoint = {
-  id: string;
-  name?: string;
-  address?: string;
-  postcode?: string;
-  city?: string;
-};
-
 type CustomerInfo = {
   email?: string;
   phone?: string;
   name?: string;
-  address1?: string;
+  street?: string;
   postalCode?: string;
   city?: string;
   country?: string;
@@ -30,7 +22,6 @@ type ReqBody = {
     pricePLN: number;
   }>;
   deliveryMethod: "courier" | "inpost";
-  inpostPoint: InpostPoint | null;
   customer: CustomerInfo;
 };
 
@@ -70,23 +61,15 @@ export async function POST(req: Request) {
 
     const deliveryMethod: "courier" | "inpost" =
       body.deliveryMethod === "inpost" ? "inpost" : "courier";
-
-    const inpostPoint = deliveryMethod === "inpost" ? body.inpostPoint : null;
-    if (deliveryMethod === "inpost" && !inpostPoint?.id) {
-      return NextResponse.json(
-        { error: "Missing InPost point" },
-        { status: 400 }
-      );
-    }
-    if (!body.customer?.email || !body.customer?.phone || !body.customer?.postalCode) {
+    if (
+      !body.customer?.email ||
+      !body.customer?.phone ||
+      !body.customer?.postalCode ||
+      !body.customer?.street ||
+      !body.customer?.city
+    ) {
       return NextResponse.json(
         { error: "Missing customer details" },
-        { status: 400 }
-      );
-    }
-    if (deliveryMethod === "courier" && (!body.customer.address1 || !body.customer.city)) {
-      return NextResponse.json(
-        { error: "Missing courier address" },
         { status: 400 }
       );
     }
@@ -124,12 +107,10 @@ export async function POST(req: Request) {
       automatic_payment_methods: { enabled: true },
       metadata: {
         delivery_method: deliveryMethod,
-        inpost_point_id: inpostPoint?.id ?? "",
-        inpost_point_name: inpostPoint?.name ?? "",
         customer_email: body.customer.email ?? "",
         customer_phone: body.customer.phone ?? "",
         customer_name: body.customer.name ?? "",
-        shipping_address1: body.customer.address1 ?? "",
+        shipping_street: body.customer.street ?? "",
         shipping_postal_code: body.customer.postalCode ?? "",
         shipping_city: body.customer.city ?? "",
         shipping_country: body.customer.country ?? "PL",
