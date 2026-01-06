@@ -37,6 +37,7 @@ export async function createOrderStory(args: {
   orderId: string;
   productSlug?: string;
   productSlugs?: string[];
+  quantities?: Record<string, number>; // ✅ add
   status?: "paid" | "shipped" | "closed";
   customer: {
     name: string;
@@ -47,9 +48,16 @@ export async function createOrderStory(args: {
     city: string;
     country: string;
   };
+  delivery?: {
+    method: "courier" | "inpost"; // ✅ add
+    inpostPoint?: any;            // ✅ add
+  };
 }) {
   const folderIdRaw = process.env.STORYBLOK_ORDERS_FOLDER_ID;
-  if (!folderIdRaw) throw new Error("Missing STORYBLOK_ORDERS_FOLDER_ID");
+  if (!folderIdRaw) {
+    throw new Error("Missing env STORYBLOK_ORDERS_FOLDER_ID");
+  }
+
   const parent_id = Number(folderIdRaw);
 
   // slug inside the orders folder
@@ -73,6 +81,12 @@ export async function createOrderStory(args: {
         product_slug: resolvedSlugs.join(", "),
         product_slugs: resolvedSlugs,
         status: args.status ?? "paid",
+
+        // ✅ NEW: store quantities + delivery info
+        quantities: args.quantities ?? {},
+        delivery_method: args.delivery?.method ?? "courier",
+        inpost_point: args.delivery?.inpostPoint ?? null,
+
         customer_name: args.customer.name,
         email: args.customer.email,
         phone: args.customer.phone,
@@ -82,7 +96,6 @@ export async function createOrderStory(args: {
         country: args.customer.country,
       },
     },
-    // leave unpublished for now; we can publish after payment if you want
     publish: 0,
   };
 
@@ -91,3 +104,5 @@ export async function createOrderStory(args: {
     body: JSON.stringify(payload),
   });
 }
+
+
