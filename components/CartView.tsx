@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 import {
   CartItem,
   clearCart,
@@ -19,20 +21,64 @@ type InpostPoint = {
   [key: string]: unknown;
 };
 
+type CustomerInfo = {
+  email: string;
+  phone: string;
+  name: string;
+  address1: string;
+  postalCode: string;
+  city: string;
+};
+
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
+
 export default function CartView() {
   const [items, setItems] = useState<CartItem[]>(() => readCart());
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [intentError, setIntentError] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("courier");
   const [inpostPoint, setInpostPoint] = useState<InpostPoint | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [customer, setCustomer] = useState<CustomerInfo>({
+    email: "",
+    phone: "",
+    name: "",
+    address1: "",
+    postalCode: "",
+    city: "",
+  });
+  const resetClientSecret = () => setClientSecret(null);
 
   const needsPoint = deliveryMethod === "inpost";
   const canCheckout = !needsPoint || !!inpostPoint;
+  const isCourierAddressValid =
+    deliveryMethod === "courier"
+      ? Boolean(
+          customer.address1.trim() &&
+            customer.city.trim() &&
+            customer.postalCode.trim()
+        )
+      : customer.postalCode.trim().length > 0;
+  const canCreateIntent =
+    items.length > 0 &&
+    canCheckout &&
+    customer.email.trim().length > 0 &&
+    customer.phone.trim().length > 0 &&
+    isCourierAddressValid;
 
-  useEffect(() => subscribeToCartChanges(() => setItems(readCart())), []);
+  useEffect(
+    () =>
+      subscribeToCartChanges(() => {
+        setItems(readCart());
+        setClientSecret(null);
+      }),
+    []
+  );
 
   const total = useMemo(() => {
     return items.reduce((sum, item) => sum + item.pricePLN, 0);
@@ -53,9 +99,10 @@ export default function CartView() {
 
     setIsLoading(true);
     setErrorMessage(null);
+    setIntentError(null);
 
     try {
-      const response = await fetch("/api/checkout/start", {
+      const response = await fetch("/api/checkout/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -66,28 +113,44 @@ export default function CartView() {
           })),
           deliveryMethod,
           inpostPoint, // will be null for courier; OK
+          customer: {
+            email: customer.email,
+            phone: customer.phone,
+            name: customer.name,
+            address1: deliveryMethod === "courier" ? customer.address1 : "",
+            postalCode: customer.postalCode,
+            city: deliveryMethod === "courier" ? customer.city : "",
+            country: "PL",
+          },
         }),
       });
 
-      const data = (await response.json()) as { url?: string; error?: string };
+      const data = (await response.json()) as {
+        clientSecret?: string;
+        error?: string;
+      };
 
-      if (!response.ok || !data.url) {
-        setErrorMessage(data.error ?? "Unable to start checkout.");
+      if (!response.ok || !data.clientSecret) {
+        setIntentError(data.error ?? "Unable to start checkout.");
         setIsLoading(false);
         return;
       }
 
-      window.location.assign(data.url);
+      setClientSecret(data.clientSecret);
     } catch (error) {
       console.error("Checkout error:", error);
-      setErrorMessage("Unable to start checkout.");
+      setIntentError("Unable to start checkout.");
       setIsLoading(false);
+      return;
     }
+
+    setIsLoading(false);
   };
 
   const handleClear = () => {
     clearCart();
     setItems([]);
+    setClientSecret(null);
   };
 
   return (
@@ -178,6 +241,7 @@ export default function CartView() {
                   onChange={() => {
                     setDeliveryMethod("courier");
                     setInpostPoint(null);
+                    resetClientSecret();
                   }}
                 />
                 Courier (delivery to address)
@@ -187,7 +251,10 @@ export default function CartView() {
                 <input
                   type="radio"
                   checked={deliveryMethod === "inpost"}
-                  onChange={() => setDeliveryMethod("inpost")}
+                  onChange={() => {
+                    setDeliveryMethod("inpost");
+                    resetClientSecret();
+                  }}
                 />
                 InPost Paczkomat
               </label>
@@ -224,24 +291,29 @@ export default function CartView() {
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <button
                 onClick={handleCheckout}
-                disabled={isLoading || !canCheckout}
+                disabled={isLoading || !canCheckout || !canCreateIntent}
                 style={{
                   border: "1px solid #111",
                   background: "#111",
                   color: "#fff",
                   borderRadius: 12,
                   padding: "12px 18px",
-                  cursor: isLoading || !canCheckout ? "not-allowed" : "pointer",
+                  cursor:
+                    isLoading || !canCheckout || !canCreateIntent
+                      ? "not-allowed"
+                      : "pointer",
                   fontWeight: 700,
-                  opacity: isLoading || !canCheckout ? 0.7 : 1,
+                  opacity: isLoading || !canCheckout || !canCreateIntent ? 0.7 : 1,
                 }}
                 title={
                   !canCheckout
                     ? "Choose an InPost Paczkomat to continue"
-                    : undefined
+                    : !canCreateIntent
+                      ? "Complete customer details to continue"
+                      : undefined
                 }
               >
-                {isLoading ? "Redirecting..." : "Checkout"}
+                {isLoading ? "Preparing payment..." : "Continue to payment"}
               </button>
 
               <button
@@ -264,12 +336,124 @@ export default function CartView() {
             {errorMessage && (
               <p style={{ color: "#b00", fontWeight: 600 }}>{errorMessage}</p>
             )}
+            {intentError && (
+              <p style={{ color: "#b00", fontWeight: 600 }}>{intentError}</p>
+            )}
           </div>
+
+          <div style={{ display: "grid", gap: 12, borderTop: "1px solid #eee", paddingTop: 16 }}>
+            <div style={{ fontWeight: 800 }}>Customer details</div>
+
+            <div style={{ display: "grid", gap: 8 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Email *</span>
+                <input
+                  type="email"
+                  value={customer.email}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, email: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Phone *</span>
+                <input
+                  type="tel"
+                  value={customer.phone}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, phone: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Name</span>
+                <input
+                  type="text"
+                  value={customer.name}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, name: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                />
+              </label>
+
+              {deliveryMethod === "courier" && (
+                <>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span>Address *</span>
+                    <input
+                      type="text"
+                      value={customer.address1}
+                      onChange={(e) => {
+                        setCustomer({ ...customer, address1: e.target.value });
+                        resetClientSecret();
+                      }}
+                      style={inputStyle}
+                      required
+                    />
+                  </label>
+
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span>City *</span>
+                    <input
+                      type="text"
+                      value={customer.city}
+                      onChange={(e) => {
+                        setCustomer({ ...customer, city: e.target.value });
+                        resetClientSecret();
+                      }}
+                      style={inputStyle}
+                      required
+                    />
+                  </label>
+                </>
+              )}
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Postal code *</span>
+                <input
+                  type="text"
+                  value={customer.postalCode}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, postalCode: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
+            </div>
+          </div>
+
+          {clientSecret && stripePromise && (
+            <div style={{ borderTop: "1px solid #eee", paddingTop: 16 }}>
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <PaymentSection />
+              </Elements>
+            </div>
+          )}
+          {clientSecret && !stripePromise && (
+            <p style={{ color: "#b00", fontWeight: 600 }}>
+              Missing Stripe publishable key.
+            </p>
+          )}
 
           <InpostPointPickerModal
             open={pickerOpen}
             onClose={() => setPickerOpen(false)}
-            onSelect={(p) => setInpostPoint(p)}
+            onSelect={(p) => {
+              setInpostPoint(p);
+              resetClientSecret();
+            }}
           />
         </>
       )}
@@ -380,3 +564,63 @@ function InpostPointPickerModal(props: {
     </div>
   );
 }
+
+function PaymentSection() {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsSubmitting(true);
+    setPaymentError(null);
+
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const result = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${origin}/checkout/success`,
+      },
+    });
+
+    if (result.error) {
+      setPaymentError(result.error.message ?? "Payment failed.");
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
+      <PaymentElement />
+      <button
+        type="submit"
+        disabled={!stripe || !elements || isSubmitting}
+        style={{
+          border: "1px solid #111",
+          background: "#111",
+          color: "#fff",
+          borderRadius: 12,
+          padding: "12px 18px",
+          cursor: !stripe || !elements || isSubmitting ? "not-allowed" : "pointer",
+          fontWeight: 700,
+          opacity: !stripe || !elements || isSubmitting ? 0.7 : 1,
+        }}
+      >
+        {isSubmitting ? "Processing..." : "Pay now"}
+      </button>
+      {paymentError && (
+        <p style={{ color: "#b00", fontWeight: 600 }}>{paymentError}</p>
+      )}
+    </form>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #ddd",
+};

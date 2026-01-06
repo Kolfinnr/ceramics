@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { redis } from "@/lib/redis";
+import { reserveStock, type CheckoutItem } from "@/lib/checkout-reservation";
 
 function getOrigin(req: Request) {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
@@ -16,28 +17,7 @@ function getOrigin(req: Request) {
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-const RESERVE_LUA = `
-local key = KEYS[1]
-local want = tonumber(ARGV[1])
-
-local current = tonumber(redis.call("GET", key) or "0")
-if current <= 0 then
-  return 0
-end
-
-local take = want
-if take > current then take = current end
-
-redis.call("DECRBY", key, take)
-return take
-`;
-
-type ReqItem = {
-  productSlug: string;
-  productName: string;
-  pricePLN: number;
-  quantity: number;
-};
+type ReqItem = CheckoutItem;
 
 type ReqBody =
   | ReqItem
@@ -109,29 +89,14 @@ export async function POST(req: Request) {
     const lockTtlSeconds = 30 * 60;
     const siteUrl = getOrigin(req);
 
-    const qtyBySlug: Record<string, number> = {};
-    const backorderBySlug: Record<string, number> = {};
+    const qtyBySlug = Object.fromEntries(
+      items.map((item) => [item.productSlug, item.quantity])
+    );
 
-    // Reserve in-stock units (allow backorder)
-    for (const item of items) {
-      const slug = item.productSlug;
-      const want = item.quantity;
+    const { reservedInStockBySlug: reservedBySlug, backorderBySlug } =
+      await reserveStock(items);
 
-      qtyBySlug[slug] = want;
-
-      const stockKey = `stock:product:${slug}`;
-
-      // If stock key is missing, treat it as 0 in stock (all backorder).
-      const reservedRaw = await redis.eval(RESERVE_LUA, [stockKey], [
-        String(want),
-      ]);
-
-      const reserved = Number(reservedRaw ?? 0);
-      reservedInStockBySlug[slug] = reserved;
-
-      const backorder = Math.max(0, want - reserved);
-      backorderBySlug[slug] = backorder;
-    }
+    Object.assign(reservedInStockBySlug, reservedBySlug);
 
     const primarySlug = items[0]!.productSlug;
     const productSlugs = items.map((i) => i.productSlug);
