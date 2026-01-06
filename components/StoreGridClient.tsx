@@ -143,11 +143,13 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
             style={{
               width: "min(1100px, 100%)",
               maxHeight: "90vh",
-              overflow: "auto",
               background: "#fff",
               borderRadius: 16,
               border: "1px solid #eee",
               boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
             }}
           >
             <div
@@ -180,15 +182,17 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
               </button>
             </div>
 
-            {loadingStory && <div style={{ padding: 16 }}>Loading…</div>}
+            <div style={{ overflowY: "auto" }}>
+              {loadingStory && <div style={{ padding: 16 }}>Loading…</div>}
 
-            {storyError && (
-              <div style={{ padding: 16, color: "#b00" }}>
-                Failed to load product.<pre style={{ whiteSpace: "pre-wrap" }}>{storyError}</pre>
-              </div>
-            )}
+              {storyError && (
+                <div style={{ padding: 16, color: "#b00" }}>
+                  Failed to load product.<pre style={{ whiteSpace: "pre-wrap" }}>{storyError}</pre>
+                </div>
+              )}
 
-            {openStory && <CeramicItem story={openStory} />}
+              {openStory && <CeramicItem story={openStory} />}
+            </div>
           </div>
         </div>
       )}

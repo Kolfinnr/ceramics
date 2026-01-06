@@ -132,15 +132,16 @@ export default function CeramicItem({
         <section style={{ display: "grid", gap: 12 }}>
           {main && (
             <div
+              className="product-main-image"
               style={{
                 width: "100%",
-                height: 520,
                 borderRadius: 16,
                 border: "1px solid #eee",
                 background: "#fafafa",
                 display: "grid",
                 placeItems: "center",
                 overflow: "hidden",
+                aspectRatio: "4 / 3",
               }}
               onMouseEnter={() => setZoomed(true)}
               onMouseLeave={() => setZoomed(false)}
@@ -212,11 +213,14 @@ export default function CeramicItem({
           </div>
           {/* Stock / quantity */}
           <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ fontWeight: 700 }}>Available now</div>
-              <div style={{ color: "#444" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", color: "#444" }}>
+              <span style={{ fontWeight: 700 }}>
+                {pcs === 0 ? "Made to order" : "Available now"}
+              </span>
+              <span>·</span>
+              <span>
                 <strong>{pcs}</strong> pcs
-              </div>
+              </span>
             </div>
 
             {price != null && !Number.isNaN(price) && (
@@ -319,6 +323,9 @@ export default function CeramicItem({
         @media (max-width: 900px) {
           main > div:nth-child(2) {
             grid-template-columns: 1fr !important;
+          }
+          .product-main-image {
+            aspect-ratio: 1 / 1 !important;
           }
         }
       `}</style>
