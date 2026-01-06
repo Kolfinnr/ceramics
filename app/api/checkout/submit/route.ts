@@ -64,7 +64,8 @@ export async function POST(req: Request) {
       const metadata = session.metadata ?? {};
 
       // ✅ FIX: these MUST be inside the event handler, where session exists
-      const deliveryMethod = metadata.deliveryMethod ?? "courier";
+      const deliveryMethod: "courier" | "inpost" =
+  metadata.deliveryMethod === "inpost" ? "inpost" : "courier";
       const inpostPoint = metadata.inpostPoint
         ? safeParseJson(metadata.inpostPoint, null)
         : null;
@@ -164,6 +165,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 }
+
 
 
 
