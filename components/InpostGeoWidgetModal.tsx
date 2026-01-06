@@ -19,7 +19,7 @@ type InpostGeoWidgetModalProps = {
 
 declare global {
   interface Window {
-    afterPointSelected?: (point: InpostPoint) => void;
+    onInpostPointSelected?: (point: InpostPoint) => void;
   }
 }
 
@@ -48,16 +48,18 @@ export default function InpostGeoWidgetModal({
       document.head.appendChild(script);
     }
 
-    window.afterPointSelected = (point: InpostPoint) => {
-      if (!point?.id) return;
-      onSelect(point);
+    window.onInpostPointSelected = (point: InpostPoint) => {
+      const id = point?.id ?? point?.name;
+      if (!id) return;
+      onSelect({ ...point, id });
       onClose();
     };
 
     const handler = (event: Event) => {
       const detailEvent = event as CustomEvent<InpostPoint>;
-      if (!detailEvent.detail?.id) return;
-      onSelect(detailEvent.detail);
+      const detailId = detailEvent.detail?.id ?? detailEvent.detail?.name;
+      if (!detailId) return;
+      onSelect({ ...detailEvent.detail, id: detailId });
       onClose();
     };
 
@@ -79,18 +81,19 @@ export default function InpostGeoWidgetModal({
           </button>
         </div>
 
-        {!widgetUrl || !widgetToken ? (
+        {!widgetUrl ? (
           <div style={{ marginTop: 12, color: "#b00" }}>
             GeoWidget not configured. Set{" "}
-            <code>NEXT_PUBLIC_INPOST_GEOWIDGET_URL</code>
-            {widgetToken ? "" : " and NEXT_PUBLIC_INPOST_GEOWIDGET_TOKEN"}.
+            <code>NEXT_PUBLIC_INPOST_GEOWIDGET_URL</code>.
           </div>
         ) : (
           <div style={{ marginTop: 12 }}>
             <div
               id="inpost-geowidget"
-              data-token={widgetToken}
+              data-token={widgetToken ?? ""}
+              data-country="pl"
               data-language="pl"
+              data-callback="onInpostPointSelected"
               data-postal-code={initialPostcode ?? ""}
             />
           </div>
