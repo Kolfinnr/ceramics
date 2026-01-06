@@ -25,6 +25,25 @@ type CustomerInfo = {
 
 const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
+const PENDING_CHECKOUT_KEY = "ceramics_pending_checkout_v1";
+
+type PendingCheckout = {
+  paymentIntentId?: string;
+  clientSecret: string;
+  cartSnapshot: string;
+  deliveryMethod: DeliveryMethod;
+  customer: CustomerInfo;
+  createdAt: number;
+};
+
+const getCartSnapshot = (items: CartItem[]) =>
+  JSON.stringify(
+    items.map((item) => ({
+      productSlug: item.productSlug,
+      pricePLN: item.pricePLN,
+      quantity: item.quantity ?? 1,
+    }))
+  );
 
 export default function CartView() {
   const [items, setItems] = useState<CartItem[]>(() => readCart());
@@ -32,6 +51,8 @@ export default function CartView() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [intentError, setIntentError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [pendingRefresh, setPendingRefresh] = useState(0);
+  const [now] = useState(() => Date.now());
 
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("courier");
@@ -64,6 +85,33 @@ export default function CartView() {
       }),
     []
   );
+
+  const pendingCheckout = useMemo(() => {
+    void pendingRefresh;
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(PENDING_CHECKOUT_KEY);
+    if (!raw) return null;
+
+    try {
+      const parsed = JSON.parse(raw) as PendingCheckout;
+      const ageMs = now - parsed.createdAt;
+      if (!parsed.clientSecret || ageMs > 30 * 60 * 1000) {
+        window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
+        return null;
+      }
+
+      const snapshot = getCartSnapshot(items);
+      if (snapshot !== parsed.cartSnapshot) {
+        window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
+        return null;
+      }
+
+      return parsed;
+    } catch {
+      window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
+      return null;
+    }
+  }, [items, now, pendingRefresh]);
 
   const total = useMemo(() => {
     return items.reduce(
@@ -110,6 +158,7 @@ export default function CartView() {
 
       const data = (await response.json()) as {
         clientSecret?: string;
+        paymentIntentId?: string;
         error?: string;
       };
 
@@ -120,6 +169,19 @@ export default function CartView() {
       }
 
       setClientSecret(data.clientSecret);
+
+      if (typeof window !== "undefined") {
+        const pending: PendingCheckout = {
+          paymentIntentId: data.paymentIntentId,
+          clientSecret: data.clientSecret,
+          cartSnapshot: getCartSnapshot(items),
+          deliveryMethod,
+          customer,
+          createdAt: Date.now(),
+        };
+        window.localStorage.setItem(PENDING_CHECKOUT_KEY, JSON.stringify(pending));
+        setPendingRefresh((value) => value + 1);
+      }
     } catch (error) {
       console.error("Checkout error:", error);
       setIntentError("Unable to start checkout.");
@@ -134,6 +196,21 @@ export default function CartView() {
     clearCart();
     setItems([]);
     setClientSecret(null);
+  };
+
+  const handleResume = () => {
+    if (!pendingCheckout) return;
+    setDeliveryMethod(pendingCheckout.deliveryMethod);
+    setCustomer(pendingCheckout.customer);
+    setClientSecret(pendingCheckout.clientSecret);
+  };
+
+  const handleStartOver = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
+    }
+    setClientSecret(null);
+    setPendingRefresh((value) => value + 1);
   };
 
   return (
@@ -212,6 +289,52 @@ export default function CartView() {
               gap: 12,
             }}
           >
+            {pendingCheckout && !clientSecret && (
+              <div
+                style={{
+                  border: "1px solid #eee",
+                  borderRadius: 12,
+                  padding: 12,
+                  display: "grid",
+                  gap: 10,
+                  background: "#fafafa",
+                }}
+              >
+                <div style={{ fontWeight: 700 }}>You have an unfinished payment</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={handleResume}
+                    style={{
+                      border: "1px solid #111",
+                      background: "#111",
+                      color: "#fff",
+                      borderRadius: 10,
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Resume payment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartOver}
+                    style={{
+                      border: "1px solid #111",
+                      background: "transparent",
+                      color: "#111",
+                      borderRadius: 10,
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Start over
+                  </button>
+                </div>
+              </div>
+            )}
             <div style={{ fontSize: 18 }}>
               Total: <strong>{total} PLN</strong>
             </div>

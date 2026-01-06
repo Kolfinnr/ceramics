@@ -131,7 +131,10 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json(
-      { clientSecret: paymentIntent.client_secret },
+      {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+      },
       { status: 200 }
     );
   } catch (error: unknown) {

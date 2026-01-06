@@ -7,6 +7,9 @@ import { clearCart } from "@/lib/cart-storage";
 export default function CheckoutSuccessPage() {
   useEffect(() => {
     clearCart();
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("ceramics_pending_checkout_v1");
+    }
   }, []);
 
   return (
