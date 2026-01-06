@@ -11,6 +11,7 @@ import {
   removeFromCart,
   subscribeToCartChanges,
 } from "@/lib/cart-storage";
+import InpostGeoWidgetModal from "./InpostGeoWidgetModal";
 
 type DeliveryMethod = "courier" | "inpost";
 
@@ -283,11 +284,9 @@ export default function CartView() {
                   {inpostPoint && (
                     <div style={{ color: "#444" }}>
                       Selected:{" "}
-                      <strong>
-                        {inpostPoint.name ?? inpostPoint.id ?? "Paczkomat"}
-                      </strong>
+                      <strong>{inpostPoint.id}</strong>
                       {inpostPoint.address && (
-                        <span> – {inpostPoint.address}</span>
+                        <span> — {inpostPoint.address}</span>
                       )}
                     </div>
                   )}
@@ -462,121 +461,18 @@ export default function CartView() {
             </p>
           )}
 
-          <InpostPointPickerModal
+          <InpostGeoWidgetModal
             open={pickerOpen}
             onClose={() => setPickerOpen(false)}
-            onSelect={(p) => {
-              setInpostPoint(p);
+            onSelect={(point) => {
+              setInpostPoint(point);
               resetClientSecret();
             }}
+            initialPostcode={customer.postalCode}
           />
         </>
       )}
     </section>
-  );
-}
-
-/**
- * TEMP STUB so the build passes.
- * Replace this with the real InPost GeoWidget modal later.
- */
-function InpostPointPickerModal(props: {
-  open: boolean;
-  onClose: () => void;
-  onSelect: (p: InpostPoint) => void;
-}) {
-  const { open, onClose, onSelect } = props;
-  const [value, setValue] = useState("");
-
-  if (!open) return null;
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.35)",
-        display: "grid",
-        placeItems: "center",
-        padding: 16,
-        zIndex: 50,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: "min(560px, 100%)",
-          background: "#fff",
-          borderRadius: 16,
-          padding: 16,
-          display: "grid",
-          gap: 12,
-          border: "1px solid #eee",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ fontWeight: 800, fontSize: 16 }}>
-          Choose Paczkomat (temporary)
-        </div>
-
-        <div style={{ color: "#444" }}>
-          Temporary picker: paste an InPost point ID or name (you’ll replace this
-          with GeoWidget).
-        </div>
-
-        <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="e.g. WAW01M or 'Warsaw Central'"
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid #ddd",
-          }}
-        />
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              border: "1px solid #111",
-              background: "transparent",
-              borderRadius: 10,
-              padding: "8px 12px",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!value.trim()) return;
-              onSelect({ id: value.trim(), name: value.trim() });
-              onClose();
-            }}
-            style={{
-              border: "1px solid #111",
-              background: "#111",
-              color: "#fff",
-              borderRadius: 10,
-              padding: "8px 12px",
-              cursor: "pointer",
-              fontWeight: 700,
-              opacity: value.trim() ? 1 : 0.6,
-            }}
-            disabled={!value.trim()}
-          >
-            Select
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
