@@ -15,9 +15,10 @@ import {
 type DeliveryMethod = "courier" | "inpost";
 
 type InpostPoint = {
-  id?: string;
+  id: string;
   name?: string;
   address?: string;
+  postcode?: string;
   [key: string]: unknown;
 };
 
@@ -55,7 +56,8 @@ export default function CartView() {
   const resetClientSecret = () => setClientSecret(null);
 
   const needsPoint = deliveryMethod === "inpost";
-  const canCheckout = !needsPoint || !!inpostPoint;
+  const hasInpostPointId = Boolean(inpostPoint?.id);
+  const canCheckout = !needsPoint || hasInpostPointId;
   const isCourierAddressValid =
     deliveryMethod === "courier"
       ? Boolean(

@@ -72,6 +72,12 @@ export async function POST(req: Request) {
       body.deliveryMethod === "inpost" ? "inpost" : "courier";
 
     const inpostPoint = deliveryMethod === "inpost" ? body.inpostPoint : null;
+    if (deliveryMethod === "inpost" && !inpostPoint?.id) {
+      return NextResponse.json(
+        { error: "Missing InPost point" },
+        { status: 400 }
+      );
+    }
 
     // TODO: price validation should use server-side source of truth (Storyblok).
     const amount = items.reduce(
