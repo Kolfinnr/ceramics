@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { readCart, subscribeToCartChanges } from "@/lib/cart-storage";
 
 export default function CartLink({ style }: { style: CSSProperties }) {
@@ -14,8 +15,8 @@ export default function CartLink({ style }: { style: CSSProperties }) {
   }, []);
 
   return (
-    <a href="/cart" style={style}>
+    <Link href="/cart" style={style}>
       Cart{count > 0 ? ` (${count})` : ""}
-    </a>
+    </Link>
   );
 }

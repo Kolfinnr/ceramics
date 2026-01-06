@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 import {
   CartItem,
   clearCart,
@@ -11,53 +14,126 @@ import {
 
 type DeliveryMethod = "courier" | "inpost";
 
-type InpostPoint = {
-  id?: string;
-  name?: string;
-  address?: string;
-  [key: string]: any;
+type CustomerInfo = {
+  email: string;
+  phone: string;
+  name: string;
+  street: string;
+  postalCode: string;
+  city: string;
 };
 
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
+const PENDING_CHECKOUT_KEY = "ceramics_pending_checkout_v1";
+
+type PendingCheckout = {
+  paymentIntentId?: string;
+  clientSecret: string;
+  cartSnapshot: string;
+  deliveryMethod: DeliveryMethod;
+  customer: CustomerInfo;
+  createdAt: number;
+};
+
+const getCartSnapshot = (items: CartItem[]) =>
+  JSON.stringify(
+    items.map((item) => ({
+      productSlug: item.productSlug,
+      pricePLN: item.pricePLN,
+      quantity: item.quantity ?? 1,
+    }))
+  );
+
 export default function CartView() {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(() => readCart());
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [intentError, setIntentError] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [pendingRefresh, setPendingRefresh] = useState(0);
+  const [now] = useState(() => Date.now());
 
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("courier");
-  const [inpostPoint, setInpostPoint] = useState<InpostPoint | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [customer, setCustomer] = useState<CustomerInfo>({
+    email: "",
+    phone: "",
+    name: "",
+    street: "",
+    postalCode: "",
+    city: "",
+  });
+  const resetClientSecret = () => setClientSecret(null);
 
-  const needsPoint = deliveryMethod === "inpost";
-  const canCheckout = !needsPoint || !!inpostPoint;
+  const isAddressValid = Boolean(
+    customer.street.trim() &&
+      customer.city.trim() &&
+      customer.postalCode.trim()
+  );
+  const canCreateIntent =
+    items.length > 0 &&
+    customer.email.trim().length > 0 &&
+    customer.phone.trim().length > 0 &&
+    isAddressValid;
 
-  useEffect(() => {
-    setItems(readCart());
-    return subscribeToCartChanges(() => setItems(readCart()));
-  }, []);
+  useEffect(
+    () =>
+      subscribeToCartChanges(() => {
+        setItems(readCart());
+        setClientSecret(null);
+      }),
+    []
+  );
+
+  const pendingCheckout = useMemo(() => {
+    void pendingRefresh;
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(PENDING_CHECKOUT_KEY);
+    if (!raw) return null;
+
+    try {
+      const parsed = JSON.parse(raw) as PendingCheckout;
+      const ageMs = now - parsed.createdAt;
+      if (!parsed.clientSecret || ageMs > 30 * 60 * 1000) {
+        window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
+        return null;
+      }
+
+      const snapshot = getCartSnapshot(items);
+      if (snapshot !== parsed.cartSnapshot) {
+        window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
+        return null;
+      }
+
+      return parsed;
+    } catch {
+      window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
+      return null;
+    }
+  }, [items, now, pendingRefresh]);
 
   const total = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.pricePLN, 0);
+    return items.reduce(
+      (sum, item) => sum + item.pricePLN * (item.quantity ?? 1),
+      0
+    );
   }, [items]);
 
   const handleRemove = (slug: string) => {
     setItems(removeFromCart(slug));
+    resetClientSecret();
   };
 
   const handleCheckout = async () => {
     if (items.length === 0) return;
 
-    // If user chose InPost but did not select a locker, block checkout
-    if (!canCheckout) {
-      setErrorMessage("Please choose an InPost Paczkomat before checkout.");
-      return;
-    }
-
     setIsLoading(true);
     setErrorMessage(null);
+    setIntentError(null);
 
     try {
-      const response = await fetch("/api/checkout/start", {
+      const response = await fetch("/api/checkout/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -65,31 +141,76 @@ export default function CartView() {
             productSlug: item.productSlug,
             productName: item.productName,
             pricePLN: item.pricePLN,
+            quantity: item.quantity ?? 1,
           })),
           deliveryMethod,
-          inpostPoint, // will be null for courier; OK
+          customer: {
+            email: customer.email,
+            phone: customer.phone,
+            name: customer.name,
+            street: customer.street,
+            postalCode: customer.postalCode,
+            city: customer.city,
+            country: "PL",
+          },
         }),
       });
 
-      const data = (await response.json()) as { url?: string; error?: string };
+      const data = (await response.json()) as {
+        clientSecret?: string;
+        paymentIntentId?: string;
+        error?: string;
+      };
 
-      if (!response.ok || !data.url) {
-        setErrorMessage(data.error ?? "Unable to start checkout.");
+      if (!response.ok || !data.clientSecret) {
+        setIntentError(data.error ?? "Unable to start checkout.");
         setIsLoading(false);
         return;
       }
 
-      window.location.href = data.url;
+      setClientSecret(data.clientSecret);
+
+      if (typeof window !== "undefined") {
+        const pending: PendingCheckout = {
+          paymentIntentId: data.paymentIntentId,
+          clientSecret: data.clientSecret,
+          cartSnapshot: getCartSnapshot(items),
+          deliveryMethod,
+          customer,
+          createdAt: Date.now(),
+        };
+        window.localStorage.setItem(PENDING_CHECKOUT_KEY, JSON.stringify(pending));
+        setPendingRefresh((value) => value + 1);
+      }
     } catch (error) {
       console.error("Checkout error:", error);
-      setErrorMessage("Unable to start checkout.");
+      setIntentError("Unable to start checkout.");
       setIsLoading(false);
+      return;
     }
+
+    setIsLoading(false);
   };
 
   const handleClear = () => {
     clearCart();
     setItems([]);
+    setClientSecret(null);
+  };
+
+  const handleResume = () => {
+    if (!pendingCheckout) return;
+    setDeliveryMethod(pendingCheckout.deliveryMethod);
+    setCustomer(pendingCheckout.customer);
+    setClientSecret(pendingCheckout.clientSecret);
+  };
+
+  const handleStartOver = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
+    }
+    setClientSecret(null);
+    setPendingRefresh((value) => value + 1);
   };
 
   return (
@@ -131,13 +252,16 @@ export default function CartView() {
 
                 <div style={{ display: "grid", gap: 6 }}>
                   <strong>{item.productName}</strong>
-                  <span style={{ color: "#555" }}>{item.pricePLN} PLN</span>
-                  <a
+                  <span style={{ color: "#555" }}>
+                    {item.pricePLN} PLN
+                    {item.quantity ? ` · Qty ${item.quantity}` : ""}
+                  </span>
+                  <Link
                     href={`/store/${item.productSlug}`}
                     style={{ color: "#111" }}
                   >
                     View item
-                  </a>
+                  </Link>
                 </div>
 
                 <button
@@ -165,6 +289,52 @@ export default function CartView() {
               gap: 12,
             }}
           >
+            {pendingCheckout && !clientSecret && (
+              <div
+                style={{
+                  border: "1px solid #eee",
+                  borderRadius: 12,
+                  padding: 12,
+                  display: "grid",
+                  gap: 10,
+                  background: "#fafafa",
+                }}
+              >
+                <div style={{ fontWeight: 700 }}>You have an unfinished payment</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={handleResume}
+                    style={{
+                      border: "1px solid #111",
+                      background: "#111",
+                      color: "#fff",
+                      borderRadius: 10,
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Resume payment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartOver}
+                    style={{
+                      border: "1px solid #111",
+                      background: "transparent",
+                      color: "#111",
+                      borderRadius: 10,
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Start over
+                  </button>
+                </div>
+              </div>
+            )}
             <div style={{ fontSize: 18 }}>
               Total: <strong>{total} PLN</strong>
             </div>
@@ -179,7 +349,7 @@ export default function CartView() {
                   checked={deliveryMethod === "courier"}
                   onChange={() => {
                     setDeliveryMethod("courier");
-                    setInpostPoint(null);
+                    resetClientSecret();
                   }}
                 />
                 Courier (delivery to address)
@@ -189,36 +359,23 @@ export default function CartView() {
                 <input
                   type="radio"
                   checked={deliveryMethod === "inpost"}
-                  onChange={() => setDeliveryMethod("inpost")}
+                  onChange={() => {
+                    setDeliveryMethod("inpost");
+                    resetClientSecret();
+                  }}
                 />
                 InPost Paczkomat
               </label>
-
               {deliveryMethod === "inpost" && (
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => setPickerOpen(true)}
-                    style={{
-                      border: "1px solid #111",
-                      background: "transparent",
-                      borderRadius: 10,
-                      padding: "8px 12px",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                    }}
+                <div style={{ fontSize: 13, color: "#555" }}>
+                  <a
+                    href="https://inpost.pl/znajdz-paczkomat"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "#111" }}
                   >
-                    {inpostPoint ? "Change Paczkomat" : "Choose Paczkomat"}
-                  </button>
-
-                  {inpostPoint && (
-                    <div style={{ color: "#444" }}>
-                      Selected:{" "}
-                      <strong>
-                        {inpostPoint.name ?? inpostPoint.id ?? "Paczkomat"}
-                      </strong>
-                    </div>
-                  )}
+                    Sprawdź adres Paczkomatu na mapie InPost
+                  </a>
                 </div>
               )}
             </div>
@@ -226,24 +383,25 @@ export default function CartView() {
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <button
                 onClick={handleCheckout}
-                disabled={isLoading || !canCheckout}
+                disabled={isLoading || !canCreateIntent}
                 style={{
                   border: "1px solid #111",
                   background: "#111",
                   color: "#fff",
                   borderRadius: 12,
                   padding: "12px 18px",
-                  cursor: isLoading || !canCheckout ? "not-allowed" : "pointer",
+                  cursor:
+                    isLoading || !canCreateIntent ? "not-allowed" : "pointer",
                   fontWeight: 700,
-                  opacity: isLoading || !canCheckout ? 0.7 : 1,
+                  opacity: isLoading || !canCreateIntent ? 0.7 : 1,
                 }}
                 title={
-                  !canCheckout
-                    ? "Choose an InPost Paczkomat to continue"
+                  !canCreateIntent
+                    ? "Complete customer details to continue"
                     : undefined
                 }
               >
-                {isLoading ? "Redirecting..." : "Checkout"}
+                {isLoading ? "Preparing payment..." : "Continue to payment"}
               </button>
 
               <button
@@ -266,119 +424,191 @@ export default function CartView() {
             {errorMessage && (
               <p style={{ color: "#b00", fontWeight: 600 }}>{errorMessage}</p>
             )}
+            {intentError && (
+              <p style={{ color: "#b00", fontWeight: 600 }}>{intentError}</p>
+            )}
           </div>
 
-          <InpostPointPickerModal
-            open={pickerOpen}
-            onClose={() => setPickerOpen(false)}
-            onSelect={(p) => setInpostPoint(p)}
-          />
+          <div style={{ display: "grid", gap: 12, borderTop: "1px solid #eee", paddingTop: 16 }}>
+            <div style={{ fontWeight: 800 }}>Customer details</div>
+
+            <div style={{ display: "grid", gap: 8 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Email *</span>
+                <input
+                  type="email"
+                  value={customer.email}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, email: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Phone *</span>
+                <input
+                  type="tel"
+                  value={customer.phone}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, phone: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Name</span>
+                <input
+                  type="text"
+                  value={customer.name}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, name: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                />
+              </label>
+
+              <div style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontWeight: 700 }}>
+                  {deliveryMethod === "inpost"
+                    ? "Adres Paczkomatu"
+                    : "Adres dostawy"}
+                </span>
+                {deliveryMethod === "inpost" && (
+                  <span style={{ fontSize: 13, color: "#555" }}>
+                    Wpisz adres Paczkomatu
+                  </span>
+                )}
+              </div>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Street *</span>
+                <input
+                  type="text"
+                  value={customer.street}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, street: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>City *</span>
+                <input
+                  type="text"
+                  value={customer.city}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, city: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Postal code *</span>
+                <input
+                  type="text"
+                  value={customer.postalCode}
+                  onChange={(e) => {
+                    setCustomer({ ...customer, postalCode: e.target.value });
+                    resetClientSecret();
+                  }}
+                  style={inputStyle}
+                  required
+                />
+              </label>
+            </div>
+          </div>
+
+          {clientSecret && stripePromise && (
+            <div style={{ borderTop: "1px solid #eee", paddingTop: 16 }}>
+              <Elements
+                stripe={stripePromise}
+                options={{ clientSecret, appearance: { theme: "stripe" } }}
+              >
+                <PaymentSection />
+              </Elements>
+            </div>
+          )}
+          {clientSecret && !stripePromise && (
+            <p style={{ color: "#b00", fontWeight: 600 }}>
+              Missing Stripe publishable key.
+            </p>
+          )}
+
         </>
       )}
     </section>
   );
 }
 
-/**
- * TEMP STUB so the build passes.
- * Replace this with the real InPost GeoWidget modal later.
- */
-function InpostPointPickerModal(props: {
-  open: boolean;
-  onClose: () => void;
-  onSelect: (p: InpostPoint) => void;
-}) {
-  const { open, onClose, onSelect } = props;
-  const [value, setValue] = useState("");
+function PaymentSection() {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  if (!open) return null;
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsSubmitting(true);
+    setPaymentError(null);
+
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const result = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${origin}/checkout/success`,
+      },
+    });
+
+    if (result.error) {
+      setPaymentError(result.error.message ?? "Payment failed.");
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.35)",
-        display: "grid",
-        placeItems: "center",
-        padding: 16,
-        zIndex: 50,
-      }}
-      onClick={onClose}
-    >
-      <div
+    <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
+      <PaymentElement />
+      <button
+        type="submit"
+        disabled={!stripe || !elements || isSubmitting}
         style={{
-          width: "min(560px, 100%)",
-          background: "#fff",
-          borderRadius: 16,
-          padding: 16,
-          display: "grid",
-          gap: 12,
-          border: "1px solid #eee",
+          border: "1px solid #111",
+          background: "#111",
+          color: "#fff",
+          borderRadius: 12,
+          padding: "12px 18px",
+          cursor: !stripe || !elements || isSubmitting ? "not-allowed" : "pointer",
+          fontWeight: 700,
+          opacity: !stripe || !elements || isSubmitting ? 0.7 : 1,
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ fontWeight: 800, fontSize: 16 }}>
-          Choose Paczkomat (temporary)
-        </div>
-
-        <div style={{ color: "#444" }}>
-          Temporary picker: paste an InPost point ID or name (you’ll replace this
-          with GeoWidget).
-        </div>
-
-        <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="e.g. WAW01M or 'Warsaw Central'"
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid #ddd",
-          }}
-        />
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              border: "1px solid #111",
-              background: "transparent",
-              borderRadius: 10,
-              padding: "8px 12px",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!value.trim()) return;
-              onSelect({ id: value.trim(), name: value.trim() });
-              onClose();
-            }}
-            style={{
-              border: "1px solid #111",
-              background: "#111",
-              color: "#fff",
-              borderRadius: 10,
-              padding: "8px 12px",
-              cursor: "pointer",
-              fontWeight: 700,
-              opacity: value.trim() ? 1 : 0.6,
-            }}
-            disabled={!value.trim()}
-          >
-            Select
-          </button>
-        </div>
-      </div>
-    </div>
+        {isSubmitting ? "Processing..." : "Pay now"}
+      </button>
+      {paymentError && (
+        <p style={{ color: "#b00", fontWeight: 600 }}>{paymentError}</p>
+      )}
+    </form>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #ddd",
+};
