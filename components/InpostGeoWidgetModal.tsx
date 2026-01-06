@@ -17,11 +17,6 @@ type InpostGeoWidgetModalProps = {
   initialPostcode?: string;
 };
 
-declare global {
-  interface Window {
-    onInpostPointSelected?: (point: InpostPoint) => void;
-  }
-}
 
 export default function InpostGeoWidgetModal({
   open,
