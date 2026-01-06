@@ -26,13 +26,13 @@ export default async function StorePage({ blok }: { blok: StorePageBlock }) {
   // ✅ IMPORTANT: use published in production
   const version = process.env.NODE_ENV === "production" ? "published" : "draft";
 
-  const { data } = await sb.get<StoriesResponse>("cdn/stories", {
+  const { data } = (await sb.get("cdn/stories", {
     version,
     starts_with: "products/",
     is_startpage: false,
     per_page: 100,
     sort_by: "created_at:desc",
-  });
+  })) as { data: StoriesResponse };
 
   // 1) Normalize Storyblok stories
   const products = (data.stories ?? [])
