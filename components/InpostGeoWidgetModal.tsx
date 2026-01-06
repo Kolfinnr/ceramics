@@ -43,7 +43,7 @@ export default function InpostGeoWidgetModal({
       document.head.appendChild(script);
     }
 
-    window.onInpostPointSelected = (point: InpostPoint) => {
+    window.onInpostPointSelected = (point) => {
       const id = point?.id ?? point?.name;
       if (!id) return;
       onSelect({ ...point, id });
