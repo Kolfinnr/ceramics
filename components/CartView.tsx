@@ -11,7 +11,6 @@ import {
   removeFromCart,
   subscribeToCartChanges,
 } from "@/lib/cart-storage";
-import InpostGeoWidgetModal from "./InpostGeoWidgetModal";
 
 type DeliveryMethod = "courier" | "inpost";
 
@@ -45,7 +44,6 @@ export default function CartView() {
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("courier");
   const [inpostPoint, setInpostPoint] = useState<InpostPoint | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [customer, setCustomer] = useState<CustomerInfo>({
     email: "",
     phone: "",
@@ -57,9 +55,12 @@ export default function CartView() {
   const resetClientSecret = () => setClientSecret(null);
 
   const needsPoint = deliveryMethod === "inpost";
-  const hasInpostPointId = Boolean(inpostPoint?.id);
+  const inpostCode = inpostPoint?.id ?? "";
+  const hasInpostPointId = Boolean(inpostCode);
   const canCheckout = !needsPoint || hasInpostPointId;
   const showInpostError = needsPoint && !hasInpostPointId;
+  const inpostCodeError =
+    needsPoint && inpostCode && !/^[A-Z0-9_-]{5,20}$/.test(inpostCode);
   const isCourierAddressValid =
     deliveryMethod === "courier"
       ? Boolean(
@@ -71,6 +72,7 @@ export default function CartView() {
   const canCreateIntent =
     items.length > 0 &&
     canCheckout &&
+    !inpostCodeError &&
     customer.email.trim().length > 0 &&
     customer.phone.trim().length > 0 &&
     isCourierAddressValid;
@@ -266,35 +268,43 @@ export default function CartView() {
 
               {deliveryMethod === "inpost" && (
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => setPickerOpen(true)}
-                    style={{
-                      border: "1px solid #111",
-                      background: "transparent",
-                      borderRadius: 10,
-                      padding: "8px 12px",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {inpostPoint ? "Change Paczkomat" : "Choose Paczkomat"}
-                  </button>
-
-                  {inpostPoint && (
-                    <div style={{ color: "#444" }}>
-                      Selected:{" "}
-                      <strong>{inpostPoint.id}</strong>
-                      {inpostPoint.address && (
-                        <span> — {inpostPoint.address}</span>
-                      )}
-                    </div>
-                  )}
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span>Paczkomat code *</span>
+                    <input
+                      type="text"
+                      placeholder="e.g. WAW09BAPP"
+                      value={inpostCode}
+                      onChange={(e) => {
+                        const nextValue = e.target.value.toUpperCase().trim();
+                        setInpostPoint(nextValue ? { id: nextValue } : null);
+                        resetClientSecret();
+                      }}
+                      style={inputStyle}
+                      required
+                    />
+                  </label>
+                  <div style={{ fontSize: 13, color: "#555" }}>
+                    Find the code on the{" "}
+                    <a
+                      href="https://inpost.pl/znajdz-paczkomat"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: "#111" }}
+                    >
+                      InPost map
+                    </a>
+                    .
+                  </div>
                 </div>
               )}
               {showInpostError && (
                 <p style={{ color: "#b00", fontWeight: 600 }}>
-                  Choose an InPost Paczkomat to continue.
+                  Enter a Paczkomat code to continue.
+                </p>
+              )}
+              {inpostCodeError && (
+                <p style={{ color: "#b00", fontWeight: 600 }}>
+                  Use a valid Paczkomat code (5–20 letters/numbers).
                 </p>
               )}
             </div>
@@ -461,15 +471,6 @@ export default function CartView() {
             </p>
           )}
 
-          <InpostGeoWidgetModal
-            open={pickerOpen}
-            onClose={() => setPickerOpen(false)}
-            onSelect={(point) => {
-              setInpostPoint(point);
-              resetClientSecret();
-            }}
-            initialPostcode={customer.postalCode}
-          />
         </>
       )}
     </section>
