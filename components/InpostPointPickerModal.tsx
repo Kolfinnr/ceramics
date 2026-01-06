@@ -9,11 +9,6 @@ type InpostPoint = {
   [key: string]: unknown;
 };
 
-declare global {
-  interface Window {
-    afterPointSelected?: (point: InpostPoint) => void;
-  }
-}
 
 export default function InpostPointPickerModal({
   open,
