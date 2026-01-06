@@ -7,8 +7,8 @@ export const runtime = "nodejs"; // good for Stripe webhook reliability
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-function safeParseJson<T>(value: string | null | undefined, fallback: T): T {
-  if (!value) return fallback;
+function safeParseJson<T>(value: unknown, fallback: T): T {
+  if (typeof value !== "string" || !value) return fallback;
   try {
     return JSON.parse(value) as T;
   } catch {
