@@ -380,6 +380,5 @@ function InpostPointPickerModal(props: {
         </div>
       </div>
     </div>
- </section>
   );
 }
