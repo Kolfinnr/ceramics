@@ -14,3 +14,16 @@ declare module "react" {
     }
   }
 }
+
+declare global {
+  interface Window {
+    afterPointSelected?: (point: { id?: string; name?: string }) => void;
+    onInpostPointSelected?: (point: {
+      id?: string;
+      name?: string;
+      address?: string;
+      postcode?: string;
+      city?: string;
+    }) => void;
+  }
+}
