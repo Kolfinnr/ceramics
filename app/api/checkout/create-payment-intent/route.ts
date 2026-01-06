@@ -78,6 +78,18 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (!body.customer?.email || !body.customer?.phone || !body.customer?.postalCode) {
+      return NextResponse.json(
+        { error: "Missing customer details" },
+        { status: 400 }
+      );
+    }
+    if (deliveryMethod === "courier" && (!body.customer.address1 || !body.customer.city)) {
+      return NextResponse.json(
+        { error: "Missing courier address" },
+        { status: 400 }
+      );
+    }
 
     // TODO: price validation should use server-side source of truth (Storyblok).
     const amount = items.reduce(

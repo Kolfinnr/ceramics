@@ -125,68 +125,8 @@ export async function POST(req: Request) {
     // --------------------------
     if (event.type === "payment_intent.succeeded") {
       const intent = event.data.object as Stripe.PaymentIntent;
-
-      const already = await redis.get(`processed:intent:${intent.id}`);
-      if (already) {
-        return NextResponse.json({ received: true }, { status: 200 });
-      }
-
-      const metadata = intent.metadata ?? {};
-
-      const deliveryMethod: "courier" | "inpost" =
-        metadata.delivery_method === "inpost" ? "inpost" : "courier";
-
-      const inpostPoint =
-        metadata.inpost_point_id || metadata.inpost_point_name
-          ? {
-              id: metadata.inpost_point_id,
-              name: metadata.inpost_point_name,
-            }
-          : null;
-
-      const compactItems = safeParseJson<Array<{ slug: string; quantity: number }>>(
-        metadata.cart_items_compact,
-        []
-      );
-
-      const productSlugs = compactItems.map((item) => item.slug);
-      const quantities =
-        compactItems.length > 0
-          ? Object.fromEntries(
-              compactItems.map((item) => [item.slug, item.quantity])
-            )
-          : safeParseJson<Record<string, number>>(metadata.quantities, {});
-
-      await redis.set(`processed:intent:${intent.id}`, "1", {
-        ex: 60 * 60 * 24 * 30,
-      });
-
-      await redis.del(`reserve:payment_intent:${intent.id}`);
-
-      try {
-        await createOrderStory({
-          orderId: intent.id,
-          status: "paid",
-          productSlugs,
-          quantities,
-          customer: {
-            name: metadata.customer_name || "Unknown",
-            email: metadata.customer_email || "Unknown",
-            phone: metadata.customer_phone || "Unknown",
-            address1: metadata.shipping_address1 || "Unknown",
-            postalCode: metadata.shipping_postal_code || "Unknown",
-            city: metadata.shipping_city || "Unknown",
-            country: metadata.shipping_country || "Unknown",
-          },
-          delivery: {
-            method: deliveryMethod,
-            inpostPoint,
-          },
-        });
-      } catch (error) {
-        console.error("Failed to create Storyblok order:", error);
-      }
-
+      console.info("Payment intent succeeded:", intent.id);
+      // TODO: finalize order creation for PaymentIntent metadata.
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
@@ -195,33 +135,8 @@ export async function POST(req: Request) {
     // --------------------------
     if (event.type === "payment_intent.payment_failed") {
       const intent = event.data.object as Stripe.PaymentIntent;
-
-      const reserveKey = `reserve:payment_intent:${intent.id}`;
-      const reserveRaw = await redis.get(reserveKey);
-
-      let reservedInStockBySlug: Record<string, number> = {};
-
-      if (reserveRaw) {
-        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
-          reserveRaw,
-          {}
-        );
-        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
-      } else {
-        reservedInStockBySlug = safeParseJson<Record<string, number>>(
-          intent.metadata?.reserved_in_stock,
-          {}
-        );
-      }
-
-      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
-        if (reserved > 0) {
-          await redis.incrby(`stock:product:${slug}`, reserved);
-        }
-      }
-
-      await redis.del(reserveKey);
-
+      console.warn("Payment intent failed:", intent.id);
+      // TODO: release reserved stock for failed PaymentIntents.
       return NextResponse.json({ received: true }, { status: 200 });
     }
 

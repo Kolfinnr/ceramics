@@ -58,6 +58,7 @@ export default function CartView() {
   const needsPoint = deliveryMethod === "inpost";
   const hasInpostPointId = Boolean(inpostPoint?.id);
   const canCheckout = !needsPoint || hasInpostPointId;
+  const showInpostError = needsPoint && !hasInpostPointId;
   const isCourierAddressValid =
     deliveryMethod === "courier"
       ? Boolean(
@@ -88,6 +89,7 @@ export default function CartView() {
 
   const handleRemove = (slug: string) => {
     setItems(removeFromCart(slug));
+    resetClientSecret();
   };
 
   const handleCheckout = async () => {
@@ -284,9 +286,17 @@ export default function CartView() {
                       <strong>
                         {inpostPoint.name ?? inpostPoint.id ?? "Paczkomat"}
                       </strong>
+                      {inpostPoint.address && (
+                        <span> – {inpostPoint.address}</span>
+                      )}
                     </div>
                   )}
                 </div>
+              )}
+              {showInpostError && (
+                <p style={{ color: "#b00", fontWeight: 600 }}>
+                  Choose an InPost Paczkomat to continue.
+                </p>
               )}
             </div>
 
@@ -438,7 +448,10 @@ export default function CartView() {
 
           {clientSecret && stripePromise && (
             <div style={{ borderTop: "1px solid #eee", paddingTop: 16 }}>
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
+              <Elements
+                stripe={stripePromise}
+                options={{ clientSecret, appearance: { theme: "stripe" } }}
+              >
                 <PaymentSection />
               </Elements>
             </div>
