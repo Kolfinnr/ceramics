@@ -221,6 +221,290 @@ export async function POST(req: Request) {
     }
 
     // --------------------------
+    // ✅ PAYMENT INTENT SUCCEEDED
+    // --------------------------
+    if (eventType === "payment_intent.succeeded") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.info("Payment intent succeeded:", intent.id);
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`stock:product:${slug}`, -reserved);
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
+    // ✅ PAYMENT INTENT FAILED
+    // --------------------------
+    if (eventType === "payment_intent.payment_failed") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.warn("Payment intent failed:", intent.id);
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
+    // ✅ PAYMENT INTENT SUCCEEDED
+    // --------------------------
+    if (eventType === "payment_intent.succeeded") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.info("Payment intent succeeded:", intent.id);
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`stock:product:${slug}`, -reserved);
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
+    // ✅ PAYMENT INTENT FAILED
+    // --------------------------
+    if (eventType === "payment_intent.payment_failed") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.warn("Payment intent failed:", intent.id);
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
+    // ✅ PAYMENT INTENT SUCCEEDED
+    // --------------------------
+    if (event.type === "payment_intent.succeeded") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.info("Payment intent succeeded:", intent.id);
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`stock:product:${slug}`, -reserved);
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
+    // ✅ PAYMENT INTENT FAILED
+    // --------------------------
+    if (event.type === "payment_intent.payment_failed") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.warn("Payment intent failed:", intent.id);
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
+    // ✅ PAYMENT INTENT SUCCEEDED
+    // --------------------------
+    if (event.type === "payment_intent.succeeded") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.info("Payment intent succeeded:", intent.id);
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`stock:product:${slug}`, -reserved);
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
+    // ✅ PAYMENT INTENT FAILED
+    // --------------------------
+    if (event.type === "payment_intent.payment_failed") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.warn("Payment intent failed:", intent.id);
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
     // ✅ CHECKOUT EXPIRED
     // --------------------------
     if (eventType === "checkout.session.expired") {
