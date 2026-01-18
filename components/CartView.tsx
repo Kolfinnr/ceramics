@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
@@ -53,6 +53,8 @@ export default function CartView() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [pendingRefresh, setPendingRefresh] = useState(0);
   const [now] = useState(() => Date.now());
+  const [showPayment, setShowPayment] = useState(false);
+  const paymentRef = useRef<HTMLDivElement | null>(null);
 
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("courier");
@@ -64,7 +66,10 @@ export default function CartView() {
     postalCode: "",
     city: "",
   });
-  const resetClientSecret = () => setClientSecret(null);
+  const resetClientSecret = () => {
+    setClientSecret(null);
+    setShowPayment(false);
+  };
 
   const isAddressValid = Boolean(
     customer.street.trim() &&
@@ -169,6 +174,7 @@ export default function CartView() {
       }
 
       setClientSecret(data.clientSecret);
+      setShowPayment(true);
 
       if (typeof window !== "undefined") {
         const pending: PendingCheckout = {
@@ -203,6 +209,7 @@ export default function CartView() {
     setDeliveryMethod(pendingCheckout.deliveryMethod);
     setCustomer(pendingCheckout.customer);
     setClientSecret(pendingCheckout.clientSecret);
+    setShowPayment(true);
   };
 
   const handleStartOver = () => {
@@ -210,8 +217,15 @@ export default function CartView() {
       window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
     }
     setClientSecret(null);
+    setShowPayment(false);
     setPendingRefresh((value) => value + 1);
   };
+
+  useEffect(() => {
+    if (showPayment && paymentRef.current) {
+      paymentRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showPayment]);
 
   return (
     <section style={{ display: "grid", gap: 18 }}>
@@ -531,8 +545,11 @@ export default function CartView() {
             </div>
           </div>
 
-          {clientSecret && stripePromise && (
-            <div style={{ borderTop: "1px solid #eee", paddingTop: 16 }}>
+          {showPayment && clientSecret && stripePromise && (
+            <div
+              ref={paymentRef}
+              style={{ borderTop: "1px solid #eee", paddingTop: 16 }}
+            >
               <Elements
                 stripe={stripePromise}
                 options={{ clientSecret, appearance: { theme: "stripe" } }}
@@ -541,7 +558,7 @@ export default function CartView() {
               </Elements>
             </div>
           )}
-          {clientSecret && !stripePromise && (
+          {showPayment && clientSecret && !stripePromise && (
             <p style={{ color: "#b00", fontWeight: 600 }}>
               Missing Stripe publishable key.
             </p>
