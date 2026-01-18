@@ -55,10 +55,11 @@ export async function reserveStock(items: CheckoutItem[]) {
 }
 
 export async function cleanupExpiredPaymentIntentReservations(now = Date.now()) {
-  const expired = await redis.zrangebyscore<string[]>(
+  const expired = await redis.zrange<string[]>(
     PAYMENT_INTENT_CLEANUP_KEY,
     0,
-    now
+    now,
+    { byScore: true }
   );
 
   if (!expired || expired.length === 0) return;
