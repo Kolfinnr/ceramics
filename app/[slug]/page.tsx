@@ -1,5 +1,6 @@
 import BlockRenderer from "@/components/BlockRenderer"; // adjust if your components folder differs
 import { notFound } from "next/navigation";
+import { isStoryblokBlock, StoryblokBlock } from "@/lib/storyblok-types";
 
 export const revalidate = 60;
 
@@ -14,8 +15,18 @@ async function fetchStory(fullSlug: string, token: string) {
   const raw = await res.text();
   if (!res.ok) throw new Error(`Storyblok ${res.status}: ${raw}`);
 
-  return JSON.parse(raw);
+  return JSON.parse(raw) as StoryblokStoryResponse;
 }
+
+type StoryblokStoryContent = {
+  body?: unknown;
+};
+
+type StoryblokStoryResponse = {
+  story?: {
+    content?: StoryblokStoryContent;
+  };
+};
 
 export default async function DynamicPage({
   params,
@@ -34,7 +45,7 @@ export default async function DynamicPage({
     `pages/${slug}/home`, // optional pattern some people use
   ];
 
-  let data: any = null;
+  let data: StoryblokStoryResponse | null = null;
   for (const fullSlug of candidates) {
     data = await fetchStory(fullSlug, token);
     if (data?.story) break;
@@ -47,7 +58,9 @@ export default async function DynamicPage({
   return (
     <main style={{ padding: "40px 16px", maxWidth: 1100, margin: "0 auto" }}>
       {Array.isArray(body) ? (
-        body.map((blok: any) => <BlockRenderer key={blok._uid} blok={blok} />)
+        (body as StoryblokBlock[]).filter(isStoryblokBlock).map((blok) => (
+          <BlockRenderer key={blok._uid ?? blok.component} blok={blok} />
+        ))
       ) : (
         <pre style={{ whiteSpace: "pre-wrap" }}>
           {JSON.stringify(data.story?.content, null, 2)}

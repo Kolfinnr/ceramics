@@ -2,13 +2,13 @@
 
 import { useEffect } from "react";
 
-type InpostPoint = any; // keep flexible; we normalize what we need later
+type InpostPoint = {
+  id?: string;
+  name?: string;
+  address?: string;
+  [key: string]: unknown;
+};
 
-declare global {
-  interface Window {
-    afterPointSelected?: (point: InpostPoint) => void;
-  }
-}
 
 export default function InpostPointPickerModal({
   open,
@@ -35,7 +35,7 @@ export default function InpostPointPickerModal({
     }
 
     // 2) Provide callback (used by onpoint="afterPointSelected")
-    window.afterPointSelected = (point: any) => {
+    window.afterPointSelected = (point: InpostPoint) => {
       onSelect(point);
       onClose();
     };
@@ -51,9 +51,10 @@ export default function InpostPointPickerModal({
     }
 
     // 4) Alternative event-based capture (works too)
-    const handler = (e: any) => {
-      if (e?.detail) {
-        onSelect(e.detail);
+    const handler = (e: Event) => {
+      const detailEvent = e as CustomEvent<InpostPoint>;
+      if (detailEvent.detail) {
+        onSelect(detailEvent.detail);
         onClose();
       }
     };
