@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { clearCart } from "@/lib/cart-storage";
 
 export default function CheckoutSuccessPage() {
   useEffect(() => {
     clearCart();
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("ceramics_pending_checkout_v1");
+    }
   }, []);
 
   return (
@@ -14,9 +18,12 @@ export default function CheckoutSuccessPage() {
       <p style={{ fontSize: 18, color: "#444" }}>
         Thank you! We have received your payment and are preparing your order.
       </p>
-      <a href="/store" style={{ display: "inline-block", marginTop: 24, color: "#111" }}>
+      <Link
+        href="/store"
+        style={{ display: "inline-block", marginTop: 24, color: "#111" }}
+      >
         Back to store
-      </a>
+      </Link>
     </main>
   );
 }
