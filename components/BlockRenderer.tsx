@@ -5,10 +5,9 @@ import AboutHero from "./AboutHero";
 import AboutStory from "./AboutStory";
 import StorePage from "./StorePage";
 import SiteLayout from "./SiteLayout";
+import { StoryblokBlock } from "@/lib/storyblok-types";
 
-type AnyBlock = Record<string, any>;
-
-export default function BlockRenderer({ blok }: { blok: AnyBlock }) {
+export default function BlockRenderer({ blok }: { blok: StoryblokBlock }) {
   switch (blok.component) {
  case "site_layout":
   return <SiteLayout blok={blok} />;

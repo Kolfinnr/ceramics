@@ -1,4 +1,14 @@
-export default function AboutHero({ blok }: { blok: any }) {
+import { StoryblokBlock, StoryblokImage } from "@/lib/storyblok-types";
+
+type AboutHeroBlock = StoryblokBlock & {
+  headline?: string;
+  title?: string;
+  subheadline?: string;
+  image?: StoryblokImage;
+  hero_image?: StoryblokImage;
+};
+
+export default function AboutHero({ blok }: { blok: AboutHeroBlock }) {
   const img = blok.image?.filename || blok.hero_image?.filename; // supports either name
 
   return (

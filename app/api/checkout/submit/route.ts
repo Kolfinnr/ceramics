@@ -7,8 +7,8 @@ export const runtime = "nodejs"; // good for Stripe webhook reliability
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-function safeParseJson<T>(value: string | null | undefined, fallback: T): T {
-  if (!value) return fallback;
+function safeParseJson<T>(value: unknown, fallback: T): T {
+  if (typeof value !== "string" || !value) return fallback;
   try {
     return JSON.parse(value) as T;
   } catch {
@@ -40,8 +40,9 @@ export async function POST(req: Request) {
 
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-  } catch (err: any) {
-    console.error("Stripe webhook signature verification failed:", err?.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Stripe webhook signature verification failed:", message);
     return NextResponse.json(
       { error: "Invalid signature" },
       { status: 400 }
@@ -116,6 +117,26 @@ export async function POST(req: Request) {
         // Keep 200 OK so Stripe doesn't retry forever due to Storyblok issues
       }
 
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
+    // ✅ PAYMENT INTENT SUCCEEDED
+    // --------------------------
+    if (event.type === "payment_intent.succeeded") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.info("Payment intent succeeded:", intent.id);
+      // TODO: finalize order creation for PaymentIntent metadata.
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // --------------------------
+    // ✅ PAYMENT INTENT FAILED
+    // --------------------------
+    if (event.type === "payment_intent.payment_failed") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.warn("Payment intent failed:", intent.id);
+      // TODO: release reserved stock for failed PaymentIntents.
       return NextResponse.json({ received: true }, { status: 200 });
     }
 

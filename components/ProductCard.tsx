@@ -1,10 +1,12 @@
 "use client";
 
+import { ProductStory } from "@/lib/storyblok-types";
+
 export default function ProductCard({
   product,
   onOpen,
 }: {
-  product: any;
+  product: ProductStory;
   onOpen: (slug: string) => void;
 }) {
   const slug = product?.slug;

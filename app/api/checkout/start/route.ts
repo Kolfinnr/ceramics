@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { redis } from "@/lib/redis";
+import { reserveStock, type CheckoutItem } from "@/lib/checkout-reservation";
 
 function getOrigin(req: Request) {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
@@ -16,28 +17,7 @@ function getOrigin(req: Request) {
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-const RESERVE_LUA = `
-local key = KEYS[1]
-local want = tonumber(ARGV[1])
-
-local current = tonumber(redis.call("GET", key) or "0")
-if current <= 0 then
-  return 0
-end
-
-local take = want
-if take > current then take = current end
-
-redis.call("DECRBY", key, take)
-return take
-`;
-
-type ReqItem = {
-  productSlug: string;
-  productName: string;
-  pricePLN: number;
-  quantity: number;
-};
+type ReqItem = CheckoutItem;
 
 type ReqBody =
   | ReqItem
@@ -45,11 +25,14 @@ type ReqBody =
       items?: ReqItem[];
       // New fields from CartView:
       deliveryMethod?: "courier" | "inpost";
-      inpostPoint?: any;
+      inpostPoint?: unknown;
 
       // Back-compat if you used "delivery" earlier:
-      delivery?: { method?: "courier" | "inpost"; inpostPoint?: any };
+      delivery?: { method?: "courier" | "inpost"; inpostPoint?: unknown };
     };
+
+const isSingleItem = (value: ReqBody): value is ReqItem =>
+  typeof (value as ReqItem).productSlug === "string";
 
 export async function POST(req: Request) {
   const reservedInStockBySlug: Record<string, number> = {};
@@ -59,27 +42,26 @@ export async function POST(req: Request) {
 
     // Accept both formats:
     const deliveryMethod: "courier" | "inpost" =
-      (typeof (body as any).deliveryMethod === "string"
-        ? (body as any).deliveryMethod
-        : (body as any).delivery?.method) === "inpost"
+      ("deliveryMethod" in body && body.deliveryMethod === "inpost") ||
+      ("delivery" in body && body.delivery?.method === "inpost")
         ? "inpost"
         : "courier";
 
+    const directPoint = "inpostPoint" in body ? body.inpostPoint : null;
+    const legacyPoint = "delivery" in body ? body.delivery?.inpostPoint : null;
     const inpostPoint =
-      deliveryMethod === "inpost"
-        ? (body as any).inpostPoint ?? (body as any).delivery?.inpostPoint ?? null
-        : null;
+      deliveryMethod === "inpost" ? directPoint ?? legacyPoint ?? null : null;
 
     const items: ReqItem[] =
       "items" in body && Array.isArray(body.items) && body.items.length > 0
         ? body.items
-        : "productSlug" in body
+        : isSingleItem(body)
           ? [
               {
                 productSlug: body.productSlug,
                 productName: body.productName,
                 pricePLN: body.pricePLN,
-                quantity: (body as ReqItem).quantity ?? 1,
+                quantity: body.quantity ?? 1,
               },
             ]
           : [];
@@ -107,29 +89,14 @@ export async function POST(req: Request) {
     const lockTtlSeconds = 30 * 60;
     const siteUrl = getOrigin(req);
 
-    const qtyBySlug: Record<string, number> = {};
-    const backorderBySlug: Record<string, number> = {};
+    const qtyBySlug = Object.fromEntries(
+      items.map((item) => [item.productSlug, item.quantity])
+    );
 
-    // Reserve in-stock units (allow backorder)
-    for (const item of items) {
-      const slug = item.productSlug;
-      const want = item.quantity;
+    const { reservedInStockBySlug: reservedBySlug, backorderBySlug } =
+      await reserveStock(items);
 
-      qtyBySlug[slug] = want;
-
-      const stockKey = `stock:product:${slug}`;
-
-      // If stock key is missing, treat it as 0 in stock (all backorder).
-      const reservedRaw = await redis.eval(RESERVE_LUA, [stockKey], [
-        String(want),
-      ]);
-
-      const reserved = Number(reservedRaw ?? 0);
-      reservedInStockBySlug[slug] = reserved;
-
-      const backorder = Math.max(0, want - reserved);
-      backorderBySlug[slug] = backorder;
-    }
+    Object.assign(reservedInStockBySlug, reservedBySlug);
 
     const primarySlug = items[0]!.productSlug;
     const productSlugs = items.map((i) => i.productSlug);
@@ -172,7 +139,7 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({ url: session.url }, { status: 200 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Roll back reserved stock if Stripe/session creation failed
     try {
       for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
@@ -186,7 +153,7 @@ export async function POST(req: Request) {
 
     console.error(e);
     return NextResponse.json(
-      { error: e?.message ?? "Server error" },
+      { error: e instanceof Error ? e.message : "Server error" },
       { status: 500 }
     );
   }
