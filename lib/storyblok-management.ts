@@ -4,7 +4,7 @@ type StoryblokCreateStoryPayload = {
     name: string;
     slug: string;
     parent_id: number;
-    content: any;
+    content: Record<string, unknown>;
     is_startpage?: boolean;
     default_root?: string;
   };
@@ -50,7 +50,7 @@ export async function createOrderStory(args: {
   };
   delivery?: {
     method: "courier" | "inpost"; // ✅ add
-    inpostPoint?: any;            // ✅ add
+    inpostPoint?: unknown; // ✅ add
   };
 }) {
   const folderIdRaw = process.env.STORYBLOK_ORDERS_FOLDER_ID;
@@ -99,7 +99,7 @@ export async function createOrderStory(args: {
     publish: 0,
   };
 
-  return await sbMgmt<any>(`/stories/`, {
+  return await sbMgmt<Record<string, unknown>>(`/stories/`, {
     method: "POST",
     body: JSON.stringify(payload),
   });

@@ -1,4 +1,10 @@
-export default function FeaturedGrid({ blok }: { blok: any }) {
+import { StoryblokBlock } from "@/lib/storyblok-types";
+
+type FeaturedGridBlock = StoryblokBlock & {
+  title?: string;
+};
+
+export default function FeaturedGrid({ blok }: { blok: FeaturedGridBlock }) {
   return (
     <section style={{ padding: "40px 0" }}>
       <h2 style={{ fontSize: 28, marginBottom: 12 }}>{blok.title ?? "Featured"}</h2>
