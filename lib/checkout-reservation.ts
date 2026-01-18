@@ -66,8 +66,8 @@ export async function cleanupExpiredPaymentIntentReservations(now = Date.now()) 
 
   for (const intentId of expired) {
     const reserveKey = `reserve:payment_intent:${intentId}`;
-    const reserveRaw = await redis.get(reserveKey);
-    if (reserveRaw) {
+    const reserveRaw = await redis.get<string>(reserveKey);
+    if (typeof reserveRaw === "string" && reserveRaw.length > 0) {
       try {
         const parsed = JSON.parse(reserveRaw) as {
           reservedInStockBySlug?: Record<string, number>;
