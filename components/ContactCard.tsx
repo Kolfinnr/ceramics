@@ -1,4 +1,11 @@
-export default function ContactCard({ blok }: { blok: any }) {
+import { StoryblokBlock } from "@/lib/storyblok-types";
+
+type ContactCardBlock = StoryblokBlock & {
+  email?: string;
+  phone?: string;
+};
+
+export default function ContactCard({ blok }: { blok: ContactCardBlock }) {
   return (
     <section style={{ padding: "24px 0", borderTop: "1px solid #eee" }}>
       <h3 style={{ fontSize: 20, marginBottom: 8 }}>Contact</h3>
