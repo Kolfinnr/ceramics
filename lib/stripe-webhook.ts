@@ -22,10 +22,6 @@ redis.call("INCRBY", reserveKey, -amount)
 return newStock
 `;
 
-type ReservedPayload = {
-  reservedInStockBySlug?: Record<string, number>;
-};
-
 type ParsedReservation = {
   reservedInStockBySlug: Record<string, number>;
 };
@@ -39,23 +35,30 @@ function safeParseJson<T>(value: unknown, fallback: T): T {
   }
 }
 
-function parseReservedFromPayload(payload: ReservedPayload | Record<string, number>): ParsedReservation {
-  if ("reservedInStockBySlug" in payload) {
-    return {
-      reservedInStockBySlug: payload.reservedInStockBySlug ?? {},
-    };
+function parseReservedFromPayload(payload: unknown): ParsedReservation {
+  if (payload && typeof payload === "object" && "reservedInStockBySlug" in payload) {
+    const reserved = (payload as { reservedInStockBySlug?: unknown }).reservedInStockBySlug;
+    if (reserved && typeof reserved === "object" && !Array.isArray(reserved)) {
+      return { reservedInStockBySlug: reserved as Record<string, number> };
+    }
+    return { reservedInStockBySlug: {} };
   }
-  return { reservedInStockBySlug: payload };
+
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    return { reservedInStockBySlug: payload as Record<string, number> };
+  }
+
+  return { reservedInStockBySlug: {} };
 }
 
 async function loadReservation(reserveKey: string, fallbackValue: unknown) {
   const reserveRaw = await redis.get<string>(reserveKey);
   if (typeof reserveRaw === "string" && reserveRaw.length > 0) {
-    const parsed = safeParseJson<ReservedPayload>(reserveRaw, {});
+    const parsed = safeParseJson<unknown>(reserveRaw, {});
     return parseReservedFromPayload(parsed);
   }
 
-  const fallbackParsed = safeParseJson<Record<string, number>>(fallbackValue, {});
+  const fallbackParsed = safeParseJson<unknown>(fallbackValue, {});
   return parseReservedFromPayload(fallbackParsed);
 }
 
