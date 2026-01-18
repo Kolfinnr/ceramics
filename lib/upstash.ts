@@ -6,7 +6,7 @@ if (!url || !token) {
   throw new Error("Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN");
 }
 
-async function upstash<T = any>(path: string, init?: RequestInit): Promise<T> {
+async function upstash<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${url}${path}`, {
     ...init,
     headers: {

@@ -1,6 +1,14 @@
 import { render } from "storyblok-rich-text-react-renderer";
+import { StoryblokBlock, StoryblokImage } from "@/lib/storyblok-types";
 
-export default function AboutStory({ blok }: { blok: any }) {
+type AboutStoryBlock = StoryblokBlock & {
+  rich_text?: unknown;
+  quote?: string;
+  image1?: StoryblokImage;
+  image2?: StoryblokImage;
+};
+
+export default function AboutStory({ blok }: { blok: AboutStoryBlock }) {
   const img1 = blok.image1?.filename;
   const img2 = blok.image2?.filename;
 

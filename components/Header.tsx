@@ -1,3 +1,4 @@
+import Link from "next/link";
 import CartLink from "./CartLink";
 
 export default function Header() {
@@ -22,14 +23,23 @@ export default function Header() {
           gap: 18,
         }}
       >
-        <a href="/" style={{ fontWeight: 900, textDecoration: "none", color: "#111" }}>
+        <Link
+          href="/"
+          style={{ fontWeight: 900, textDecoration: "none", color: "#111" }}
+        >
           CERAMICS
-        </a>
+        </Link>
 
         <nav style={{ display: "flex", gap: 10, marginLeft: "auto" }}>
-          <a href="/" style={linkStyle}>Home</a>
-          <a href="/store" style={linkStyle}>Store</a>
-          <a href="/about" style={linkStyle}>About</a>
+          <Link href="/" style={linkStyle}>
+            Home
+          </Link>
+          <Link href="/store" style={linkStyle}>
+            Store
+          </Link>
+          <Link href="/about" style={linkStyle}>
+            About
+          </Link>
           <CartLink style={linkStyle} />
         </nav>
       </div>
