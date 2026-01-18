@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import ProductCard from "./ProductCard";
 import CeramicItem from "./CeramicItem";
+import { ProductStory } from "@/lib/storyblok-types";
 
-export default function StoreGridClient({ products }: { products: any[] }) {
+export default function StoreGridClient({ products }: { products: ProductStory[] }) {
   const [showSold, setShowSold] = useState(false);
   const [category, setCategory] = useState<string>("all");
 
   const [openSlug, setOpenSlug] = useState<string | null>(null);
-  const [openStory, setOpenStory] = useState<any | null>(null);
+  const [openStory, setOpenStory] = useState<ProductStory | null>(null);
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
 
@@ -60,8 +61,9 @@ export default function StoreGridClient({ products }: { products: any[] }) {
       const json = JSON.parse(raw);
       setOpenStory(json.story ?? null);
       setLoadingStory(false);
-    } catch (e: any) {
-      setStoryError(String(e?.message ?? e));
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      setStoryError(message);
       setLoadingStory(false);
     }
   };
@@ -115,7 +117,7 @@ export default function StoreGridClient({ products }: { products: any[] }) {
           gap: 16,
         }}
       >
-        {filtered.map((p: any) => (
+        {filtered.map((p) => (
           <ProductCard key={p.uuid ?? p.slug} product={p} onOpen={openModal} />
         ))}
       </div>
@@ -141,11 +143,13 @@ export default function StoreGridClient({ products }: { products: any[] }) {
             style={{
               width: "min(1100px, 100%)",
               maxHeight: "90vh",
-              overflow: "auto",
               background: "#fff",
               borderRadius: 16,
               border: "1px solid #eee",
               boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
             }}
           >
             <div
@@ -178,15 +182,17 @@ export default function StoreGridClient({ products }: { products: any[] }) {
               </button>
             </div>
 
-            {loadingStory && <div style={{ padding: 16 }}>Loading…</div>}
+            <div style={{ overflowY: "auto" }}>
+              {loadingStory && <div style={{ padding: 16 }}>Loading…</div>}
 
-            {storyError && (
-              <div style={{ padding: 16, color: "#b00" }}>
-                Failed to load product.<pre style={{ whiteSpace: "pre-wrap" }}>{storyError}</pre>
-              </div>
-            )}
+              {storyError && (
+                <div style={{ padding: 16, color: "#b00" }}>
+                  Failed to load product.<pre style={{ whiteSpace: "pre-wrap" }}>{storyError}</pre>
+                </div>
+              )}
 
-            {openStory && <CeramicItem story={openStory} />}
+              {openStory && <CeramicItem story={openStory} />}
+            </div>
           </div>
         </div>
       )}

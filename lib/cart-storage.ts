@@ -3,6 +3,7 @@ export type CartItem = {
   productName: string;
   pricePLN: number;
   photo?: string;
+  quantity?: number;
 };
 
 const CART_KEY = "ceramics_cart_v1";
@@ -33,10 +34,23 @@ export function writeCart(items: CartItem[]) {
 
 export function addToCart(item: CartItem) {
   const items = readCart();
-  if (items.some((existing) => existing.productSlug === item.productSlug)) {
-    return items;
+  const existingIndex = items.findIndex(
+    (existing) => existing.productSlug === item.productSlug
+  );
+  const quantity = item.quantity && item.quantity > 0 ? item.quantity : 1;
+
+  if (existingIndex >= 0) {
+    const existing = items[existingIndex]!;
+    const next = [...items];
+    next[existingIndex] = {
+      ...existing,
+      quantity: (existing.quantity ?? 1) + quantity,
+    };
+    writeCart(next);
+    return next;
   }
-  const next = [...items, item];
+
+  const next = [...items, { ...item, quantity }];
   writeCart(next);
   return next;
 }
