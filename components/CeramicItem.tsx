@@ -1,19 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { render } from "storyblok-rich-text-react-renderer";
 import { addToCart } from "@/lib/cart-storage";
+import { ProductContent, ProductStory, StoryblokImage } from "@/lib/storyblok-types";
 
 export default function CeramicItem({
   story,
-  isRedisSold = false,
 }: {
-  story: any;
-  isRedisSold?: boolean;
+  story: ProductStory;
 }) {
-  const c = story?.content ?? {};
+  const c = story?.content ?? ({} as ProductContent);
 
-  const title = c.name || story?.name || "Product";
+  const title = c.name || "Product";
   const priceRaw = c.price_pln;
   const price =
     typeof priceRaw === "number"
@@ -22,14 +22,14 @@ export default function CeramicItem({
         ? Number(priceRaw.replace(",", "."))
         : null;
 
-  const photos = c.photos || [];
+  const photos = Array.isArray(c.photos) ? c.photos : [];
   // "status === false" means you manually disabled it in Storyblok.
 // Redis sold should NOT block purchase anymore if you allow made-to-order.
-const available = c.status !== false;
+  const available = c.status !== false;
 
   const categories = Array.isArray(c.category) ? c.category : [];
   const pcsRaw = c.pcs;
-  const pcs = useMemo(() => {
+  const pcs = (() => {
     const n =
       typeof pcsRaw === "number"
         ? pcsRaw
@@ -37,7 +37,7 @@ const available = c.status !== false;
           ? Number(pcsRaw)
           : 0;
     return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
-  }, [pcsRaw]);
+  })();
 
   const [quantity, setQuantity] = useState<number>(1);
 
@@ -46,8 +46,10 @@ const available = c.status !== false;
 
   const MAX_QTY = 50; // soft safety cap so people don't accidentally type 5000
 
-  const main = photos?.[0]?.filename;
-  const rest = photos?.slice(1) ?? [];
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
+  const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
+  const main = photos?.[selectedIndex]?.filename ?? photos?.[0]?.filename;
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [addedMessage, setAddedMessage] = useState<string | null>(null);
@@ -57,43 +59,18 @@ const available = c.status !== false;
       ? rawSlug.split("/").filter(Boolean).pop() ?? rawSlug
       : title;
 
-const handleCheckout = async () => {
-  if (!available || price == null || Number.isNaN(price)) return;
-
-  setIsLoading(true);
-  setErrorMessage(null);
-  setAddedMessage(null);
-
-  try {
-    const response = await fetch("/api/checkout/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        items: [
-          {
-            productSlug,
-            productName: title,
-            pricePLN: price,
-            quantity, // ✅ NEW
-          },
-        ],
-      }),
+  const handleBuyNow = () => {
+    if (!available || price == null || Number.isNaN(price)) return;
+    addToCart({
+      productSlug,
+      productName: title,
+      pricePLN: price,
+      photo: main,
+      quantity,
     });
-
-    const data = (await response.json()) as { url?: string; error?: string };
-    if (!response.ok || !data.url) {
-      setErrorMessage(data.error ?? "Unable to start checkout.");
-      setIsLoading(false);
-      return;
-    }
-
-    window.location.href = data.url;
-  } catch (error) {
-    console.error("Checkout error:", error);
-    setErrorMessage("Unable to start checkout.");
-    setIsLoading(false);
-  }
-};
+    setIsLoading(true);
+    window.location.assign("/cart?focus=delivery");
+  };
 
 
   const handleAddToCart = () => {
@@ -103,6 +80,7 @@ const handleCheckout = async () => {
       productName: title,
       pricePLN: price,
       photo: main,
+      quantity,
     });
     setAddedMessage("Added to cart.");
     setErrorMessage(null);
@@ -115,10 +93,6 @@ const handleCheckout = async () => {
         <h1 style={{ fontSize: 42, margin: 0, lineHeight: 1.1 }}>{title}</h1>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          {price != null && !Number.isNaN(price) && (
-            <div style={{ fontSize: 18, color: "#333" }}>{price} PLN</div>
-          )}
-
           {!available && (
             <div style={{ color: "#b00", fontWeight: 800 }}>Sold</div>
           )}
@@ -157,40 +131,65 @@ const handleCheckout = async () => {
         {/* Gallery */}
         <section style={{ display: "grid", gap: 12 }}>
           {main && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={main}
-              alt={photos?.[0]?.alt || ""}
+            <div
+              className="product-main-image"
               style={{
                 width: "100%",
-                height: 520,
-                objectFit: "cover",
                 borderRadius: 16,
                 border: "1px solid #eee",
-              }}
-            />
-          )}
-
-          {rest.length > 0 && (
-            <div
-              style={{
+                background: "#fafafa",
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                gap: 10,
+                placeItems: "center",
+                overflow: "hidden",
+                aspectRatio: "4 / 3",
+              }}
+              onMouseEnter={() => setZoomed(true)}
+              onMouseLeave={() => setZoomed(false)}
+              onMouseMove={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = ((event.clientX - rect.left) / rect.width) * 100;
+                const y = ((event.clientY - rect.top) / rect.height) * 100;
+                setZoomOrigin(`${x}% ${y}%`);
               }}
             >
-              {rest.map((p: any) => (
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={main}
+                alt={photos?.[selectedIndex]?.alt || ""}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  transition: "transform 0.2s ease",
+                  transform: zoomed ? "scale(1.4)" : "scale(1)",
+                  transformOrigin: zoomOrigin,
+                }}
+              />
+            </div>
+          )}
+
+          {photos.length > 1 && (
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                overflowX: "auto",
+              }}
+            >
+              {photos.map((p: StoryblokImage, index: number) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={p.id || p.filename}
                   src={p.filename}
                   alt={p.alt || ""}
+                  onClick={() => setSelectedIndex(index)}
                   style={{
-                    width: "100%",
-                    height: 140,
+                    width: 110,
+                    height: 110,
                     objectFit: "cover",
-                    borderRadius: 14,
-                    border: "1px solid #eee",
+                    borderRadius: 12,
+                    border: index === selectedIndex ? "2px solid #111" : "1px solid #eee",
+                    cursor: "pointer",
                   }}
                 />
               ))}
@@ -214,12 +213,19 @@ const handleCheckout = async () => {
           </div>
           {/* Stock / quantity */}
           <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ fontWeight: 700 }}>Available now</div>
-              <div style={{ color: "#444" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", color: "#444" }}>
+              <span style={{ fontWeight: 700 }}>
+                {pcs === 0 ? "Made to order" : "Available now"}
+              </span>
+              <span>·</span>
+              <span>
                 <strong>{pcs}</strong> pcs
-              </div>
+              </span>
             </div>
+
+            {price != null && !Number.isNaN(price) && (
+              <div style={{ fontSize: 18, color: "#333" }}>{price} PLN</div>
+            )}
 
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <label style={{ fontWeight: 700, minWidth: 90 }}>Quantity</label>
@@ -263,7 +269,7 @@ const handleCheckout = async () => {
             <div style={{ display: "grid", gap: 10 }}>
               <button
                 disabled={!available || isLoading}
-                onClick={handleCheckout}
+                onClick={handleBuyNow}
                 style={{
                   width: "100%",
                   padding: "12px 14px",
@@ -298,9 +304,9 @@ const handleCheckout = async () => {
             {addedMessage && (
               <p style={{ marginTop: 10, color: "#1a7f37", fontWeight: 600 }}>
                 {addedMessage}{" "}
-                <a href="/cart" style={{ color: "#1a7f37" }}>
+                <Link href="/cart" style={{ color: "#1a7f37" }}>
                   View cart
-                </a>
+                </Link>
               </p>
             )}
             {errorMessage && (
@@ -317,6 +323,9 @@ const handleCheckout = async () => {
         @media (max-width: 900px) {
           main > div:nth-child(2) {
             grid-template-columns: 1fr !important;
+          }
+          .product-main-image {
+            aspect-ratio: 1 / 1 !important;
           }
         }
       `}</style>
