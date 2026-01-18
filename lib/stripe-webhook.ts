@@ -66,9 +66,12 @@ async function decrementStockAndReserve(slug: string, reserved: number) {
   if (reserved <= 0) return null;
   const stockKey = `stock:product:${slug}`;
   const reserveKey = `reserve:product:${slug}`;
-  const newStock = await redis.eval<number>(STOCK_DECREMENT_LUA, [stockKey, reserveKey], [
-    String(reserved),
-  ]);
+  const result = await redis.eval<number[]>(
+    STOCK_DECREMENT_LUA,
+    [stockKey, reserveKey],
+    [String(reserved)]
+  );
+  const newStock = Array.isArray(result) ? result[0] : result;
   return typeof newStock === "number" ? newStock : null;
 }
 
