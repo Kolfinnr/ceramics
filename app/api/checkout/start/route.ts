@@ -131,7 +131,7 @@ export async function POST(req: Request) {
       },
     });
 
-    // Store reservation record so webhook can restore stock on expire/fail
+    // Store reservation record so webhook can restore reserved holds
     await redis.set(
       `reserve:session:${session.id}`,
       JSON.stringify({ reservedInStockBySlug }),

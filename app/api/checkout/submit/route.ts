@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { redis } from "@/lib/redis";
 import { createOrderStory } from "@/lib/storyblok-management";
+import {
+  removePaymentIntentCleanup,
+} from "@/lib/checkout-reservation";
 
 export const runtime = "nodejs"; // good for Stripe webhook reliability
 
@@ -86,8 +89,32 @@ export async function POST(req: Request) {
         ex: 60 * 60 * 24 * 30, // 30 days
       });
 
-      // Clear reservation record (stock was already decremented at /start)
-      await redis.del(`reserve:session:${session.id}`);
+      // Move reserved holds into stock on successful payment
+      const reserveKey = `reserve:session:${session.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+      let reservedInStockBySlug: Record<string, number> = {};
+
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          session.metadata?.reservedInStock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`stock:product:${slug}`, -reserved);
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
 
       // Create Storyblok order (wrap in try so webhook doesn't fail hard)
       try {
@@ -126,7 +153,33 @@ export async function POST(req: Request) {
     if (event.type === "payment_intent.succeeded") {
       const intent = event.data.object as Stripe.PaymentIntent;
       console.info("Payment intent succeeded:", intent.id);
-      // TODO: finalize order creation for PaymentIntent metadata.
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`stock:product:${slug}`, -reserved);
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
@@ -136,7 +189,32 @@ export async function POST(req: Request) {
     if (event.type === "payment_intent.payment_failed") {
       const intent = event.data.object as Stripe.PaymentIntent;
       console.warn("Payment intent failed:", intent.id);
-      // TODO: release reserved stock for failed PaymentIntents.
+
+      const reserveKey = `reserve:payment_intent:${intent.id}`;
+      const reserveRaw = await redis.get(reserveKey);
+
+      let reservedInStockBySlug: Record<string, number> = {};
+      if (reserveRaw) {
+        const parsed = safeParseJson<{ reservedInStockBySlug?: Record<string, number> }>(
+          reserveRaw,
+          {}
+        );
+        reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+      } else {
+        reservedInStockBySlug = safeParseJson<Record<string, number>>(
+          intent.metadata?.reserved_in_stock,
+          {}
+        );
+      }
+
+      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+        if (reserved > 0) {
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
+        }
+      }
+
+      await redis.del(reserveKey);
+      await removePaymentIntentCleanup(intent.id);
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
@@ -146,7 +224,7 @@ export async function POST(req: Request) {
     if (event.type === "checkout.session.expired") {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      // Restore reserved stock
+      // Restore reserved holds
       // Prefer what you stored in Redis at /start, because it's the source of truth
       const reserveKey = `reserve:session:${session.id}`;
       const reserveRaw = await redis.get(reserveKey);
@@ -169,7 +247,7 @@ export async function POST(req: Request) {
 
       for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
         if (reserved > 0) {
-          await redis.incrby(`stock:product:${slug}`, reserved);
+          await redis.incrby(`reserve:product:${slug}`, -reserved);
         }
       }
 

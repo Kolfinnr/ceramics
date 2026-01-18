@@ -6,6 +6,7 @@ import {
   ProductStory,
   StoryblokBlock,
 } from "@/lib/storyblok-types";
+import { cleanupExpiredPaymentIntentReservations } from "@/lib/checkout-reservation";
 
 type StorePageBlock = StoryblokBlock & {
   title?: string;
@@ -35,6 +36,7 @@ export default async function StorePage({ blok }: { blok: StorePageBlock }) {
   })) as { data: StoriesResponse };
 
   // 1) Normalize Storyblok stories
+  await cleanupExpiredPaymentIntentReservations();
   const products = (data.stories ?? [])
     .filter((p): p is ProductStory => typeof p?.slug === "string" && p.slug.length > 0)
     .map((p) => ({
@@ -48,7 +50,9 @@ export default async function StorePage({ blok }: { blok: StorePageBlock }) {
   const productsWithStock = await Promise.all(
     products.map(async (p) => {
       const stockKey = `stock:product:${p.slug}`;
+      const reserveKey = `reserve:product:${p.slug}`;
       let stock = await redis.get<number>(stockKey);
+      const reserved = (await redis.get<number>(reserveKey)) ?? 0;
 
       if (stock === null || stock === undefined) {
         const seeded = Number(p.content?.pcs ?? 1);
@@ -60,7 +64,7 @@ export default async function StorePage({ blok }: { blok: StorePageBlock }) {
         ...p,
         content: {
           ...(p.content ?? {}),
-          pcs: stock,
+          pcs: Math.max(0, stock - reserved),
         },
       };
     })
