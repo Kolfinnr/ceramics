@@ -33,6 +33,57 @@ async function sbMgmt<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
+type StoryblokStory = {
+  id: number;
+  name: string;
+  slug: string;
+  content: Record<string, unknown>;
+};
+
+type StoryblokStoryResponse = {
+  story: StoryblokStory;
+};
+
+async function fetchStoryBySlug(slug: string): Promise<StoryblokStoryResponse> {
+  const token = process.env.STORYBLOK_TOKEN?.trim();
+  if (!token) {
+    throw new Error("Missing STORYBLOK_TOKEN");
+  }
+
+  const url =
+    `https://api.storyblok.com/v2/cdn/stories/products/${encodeURIComponent(slug)}` +
+    `?version=published&token=${encodeURIComponent(token)}`;
+
+  const res = await fetch(url, { cache: "no-store" });
+  const raw = await res.text();
+  if (!res.ok) {
+    throw new Error(`Storyblok CDN error: ${res.status} ${raw}`);
+  }
+
+  return JSON.parse(raw) as StoryblokStoryResponse;
+}
+
+export async function updateProductStock(args: { slug: string; stock: number }) {
+  const storyResponse = await fetchStoryBySlug(args.slug);
+  const story = storyResponse.story;
+  const content = {
+    ...story.content,
+    stock: args.stock,
+  };
+
+  return await sbMgmt<Record<string, unknown>>(`/stories/${story.id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      story: {
+        name: story.name,
+        slug: story.slug,
+        content,
+      },
+      publish: 0,
+    }),
+  });
+}
+
 export async function createOrderStory(args: {
   orderId: string;
   productSlug?: string;
