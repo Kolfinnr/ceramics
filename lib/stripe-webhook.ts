@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { redis } from "@/lib/redis";
 import { removePaymentIntentCleanup } from "@/lib/checkout-reservation";
@@ -68,35 +69,17 @@ async function decrementStockAndReserve(slug: string, reserved: number) {
   const result = await redis.eval<number[]>(
     STOCK_DECREMENT_LUA,
     [stockKey, reserveKey],
-    [reserved]
+    [String(reserved)]
   );
   const newStock = Array.isArray(result) ? result[0] : result;
   return typeof newStock === "number" ? newStock : null;
 }
 
-type WebhookResult = {
-  status: number;
-  body: Record<string, unknown>;
-};
-
-const okResult = (body: Record<string, unknown> = { received: true }): WebhookResult => ({
-  status: 200,
-  body,
-});
-
-const errorResult = (status: number, message: string): WebhookResult => ({
-  status,
-  body: { error: message },
-});
-
-async function handleCheckoutSessionCompleted(
-  event: Stripe.Event,
-  eventId: string
-): Promise<WebhookResult> {
+async function handleCheckoutSessionCompleted(event: Stripe.Event, eventId: string) {
   const session = event.data.object as Stripe.Checkout.Session;
   if (session.payment_status !== "paid") {
     console.info("Checkout session not paid yet.", { eventId, sessionId: session.id });
-    return okResult();
+    return NextResponse.json({ received: true }, { status: 200 });
   }
 
   const metadata = session.metadata ?? {};
@@ -162,13 +145,10 @@ async function handleCheckoutSessionCompleted(
     updatedStocks,
   });
 
-  return okResult();
+  return NextResponse.json({ received: true }, { status: 200 });
 }
 
-async function handlePaymentIntentSucceeded(
-  event: Stripe.Event,
-  eventId: string
-): Promise<WebhookResult> {
+async function handlePaymentIntentSucceeded(event: Stripe.Event, eventId: string) {
   const intent = event.data.object as Stripe.PaymentIntent;
   const reserveKey = `reserve:payment_intent:${intent.id}`;
   const { reservedInStockBySlug } = await loadReservation(
@@ -193,13 +173,10 @@ async function handlePaymentIntentSucceeded(
   });
 
   console.info("Payment intent succeeded.", { eventId, intentId: intent.id, updatedStocks });
-  return okResult();
+  return NextResponse.json({ received: true }, { status: 200 });
 }
 
-async function handlePaymentIntentFailed(
-  event: Stripe.Event,
-  eventId: string
-): Promise<WebhookResult> {
+async function handlePaymentIntentFailed(event: Stripe.Event, eventId: string) {
   const intent = event.data.object as Stripe.PaymentIntent;
   const reserveKey = `reserve:payment_intent:${intent.id}`;
   const { reservedInStockBySlug } = await loadReservation(
@@ -220,13 +197,10 @@ async function handlePaymentIntentFailed(
   });
 
   console.warn("Payment intent failed.", { eventId, intentId: intent.id });
-  return okResult();
+  return NextResponse.json({ received: true }, { status: 200 });
 }
 
-async function handleCheckoutSessionExpired(
-  event: Stripe.Event,
-  eventId: string
-): Promise<WebhookResult> {
+async function handleCheckoutSessionExpired(event: Stripe.Event, eventId: string) {
   const session = event.data.object as Stripe.Checkout.Session;
   const reserveKey = `reserve:session:${session.id}`;
   const { reservedInStockBySlug } = await loadReservation(
@@ -246,21 +220,24 @@ async function handleCheckoutSessionExpired(
   });
 
   console.info("Checkout session expired.", { eventId, sessionId: session.id });
-  return okResult();
+  return NextResponse.json({ received: true }, { status: 200 });
 }
 
-export async function handleStripeWebhookPayload(
-  rawBody: string,
-  signature: string | null
-): Promise<WebhookResult> {
+export async function handleStripeWebhook(req: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    return errorResult(500, "Missing STRIPE_WEBHOOK_SECRET");
+    return NextResponse.json({ error: "Missing STRIPE_WEBHOOK_SECRET" }, { status: 500 });
   }
 
+  const signature = req.headers.get("stripe-signature");
   if (!signature) {
-    return errorResult(400, "Missing stripe-signature header");
+    return NextResponse.json(
+      { error: "Missing stripe-signature header" },
+      { status: 400 }
+    );
   }
+
+  const rawBody = await req.text();
 
   let event: Stripe.Event;
   try {
@@ -268,7 +245,7 @@ export async function handleStripeWebhookPayload(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Stripe webhook signature verification failed:", message);
-    return errorResult(400, "Invalid signature");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   const eventId = event.id;
@@ -277,7 +254,7 @@ export async function handleStripeWebhookPayload(
   const alreadyProcessed = await redis.get(processedKey);
   if (alreadyProcessed) {
     console.info("Stripe webhook already processed.", { eventId, eventType });
-    return okResult();
+    return NextResponse.json({ received: true }, { status: 200 });
   }
 
   try {
@@ -292,17 +269,10 @@ export async function handleStripeWebhookPayload(
         return await handlePaymentIntentFailed(event, eventId);
       default:
         console.info("Stripe webhook ignored.", { eventId, eventType });
-        return okResult();
+        return NextResponse.json({ received: true }, { status: 200 });
     }
   } catch (error) {
     console.error("Stripe webhook handler error:", { eventId, eventType, error });
-    return errorResult(500, "Webhook handler error");
+    return NextResponse.json({ error: "Webhook handler error" }, { status: 500 });
   }
-}
-
-export async function handleStripeWebhook(req: Request) {
-  const rawBody = await req.text();
-  const signature = req.headers.get("stripe-signature");
-  const result = await handleStripeWebhookPayload(rawBody, signature);
-  return Response.json(result.body, { status: result.status });
 }
