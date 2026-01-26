@@ -26,6 +26,8 @@ export type CheckoutItem = {
   quantity: number;
 };
 
+const PAYMENT_INTENT_CLEANUP_KEY = "reserve:cleanup:payment_intent";
+
 export async function reserveStock(items: CheckoutItem[]) {
   const reservedInStockBySlug: Record<string, number> = {};
   const backorderBySlug: Record<string, number> = {};
@@ -50,4 +52,48 @@ export async function reserveStock(items: CheckoutItem[]) {
   }
 
   return { reservedInStockBySlug, backorderBySlug };
+}
+
+export async function cleanupExpiredPaymentIntentReservations(now = Date.now()) {
+  const expired = await redis.zrange<string[]>(
+    PAYMENT_INTENT_CLEANUP_KEY,
+    0,
+    now,
+    { byScore: true }
+  );
+
+  if (!expired || expired.length === 0) return;
+
+  for (const intentId of expired) {
+    const reserveKey = `reserve:payment_intent:${intentId}`;
+    const reserveRaw = await redis.get<string>(reserveKey);
+    if (typeof reserveRaw === "string" && reserveRaw.length > 0) {
+      try {
+        const parsed = JSON.parse(reserveRaw) as {
+          reservedInStockBySlug?: Record<string, number>;
+        };
+        const reservedInStockBySlug = parsed.reservedInStockBySlug ?? {};
+        for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
+          if (reserved > 0) {
+            await redis.incrby(`reserve:product:${slug}`, -reserved);
+          }
+        }
+      } catch {
+        // ignore malformed payloads
+      }
+    }
+    await redis.del(reserveKey);
+    await redis.zrem(PAYMENT_INTENT_CLEANUP_KEY, intentId);
+  }
+}
+
+export async function schedulePaymentIntentCleanup(intentId: string, expiresAtMs: number) {
+  await redis.zadd(PAYMENT_INTENT_CLEANUP_KEY, {
+    score: expiresAtMs,
+    member: intentId,
+  });
+}
+
+export async function removePaymentIntentCleanup(intentId: string) {
+  await redis.zrem(PAYMENT_INTENT_CLEANUP_KEY, intentId);
 }

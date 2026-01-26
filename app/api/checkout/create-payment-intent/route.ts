@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { redis } from "@/lib/redis";
-import { reserveStock, type CheckoutItem } from "@/lib/checkout-reservation";
+import {
+  cleanupExpiredPaymentIntentReservations,
+  reserveStock,
+  schedulePaymentIntentCleanup,
+  type CheckoutItem,
+} from "@/lib/checkout-reservation";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -88,6 +93,7 @@ export async function POST(req: Request) {
     }
 
     const lockTtlSeconds = 30 * 60;
+    await cleanupExpiredPaymentIntentReservations();
 
     const qtyBySlug = Object.fromEntries(
       items.map((item) => [item.productSlug, item.quantity])
@@ -128,6 +134,10 @@ export async function POST(req: Request) {
       `reserve:payment_intent:${paymentIntent.id}`,
       JSON.stringify({ reservedInStockBySlug }),
       { ex: lockTtlSeconds }
+    );
+    await schedulePaymentIntentCleanup(
+      paymentIntent.id,
+      Date.now() + lockTtlSeconds * 1000
     );
 
     return NextResponse.json(

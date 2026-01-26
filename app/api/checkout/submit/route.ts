@@ -1,7 +1,4 @@
-import { NextResponse } from "next/server";
-import Stripe from "stripe";
-import { redis } from "@/lib/redis";
-import { createOrderStory } from "@/lib/storyblok-management";
+import { handleStripeWebhook } from "@/lib/stripe-webhook";
 
 export const runtime = "nodejs"; // good for Stripe webhook reliability
 
