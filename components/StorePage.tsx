@@ -6,7 +6,6 @@ import {
   ProductStory,
   StoryblokBlock,
 } from "@/lib/storyblok-types";
-import { cleanupExpiredPaymentIntentReservations } from "@/lib/checkout-reservation";
 
 type StorePageBlock = StoryblokBlock & {
   title?: string;
@@ -36,7 +35,6 @@ export default async function StorePage({ blok }: { blok: StorePageBlock }) {
   })) as { data: StoriesResponse };
 
   // 1) Normalize Storyblok stories
-  await cleanupExpiredPaymentIntentReservations();
   const products = (data.stories ?? [])
     .filter((p): p is ProductStory => typeof p?.slug === "string" && p.slug.length > 0)
     .map((p) => ({
