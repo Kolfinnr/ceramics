@@ -13,6 +13,10 @@ local reserveKey = KEYS[2]
 local amount = tonumber(ARGV[1])
 
 local stock = tonumber(redis.call("GET", stockKey) or "0")
+if stock <= 0 then
+  redis.call("INCRBY", reserveKey, -amount)
+  return -1
+end
 local newStock = stock - amount
 if newStock < 0 then
   newStock = 0
@@ -72,7 +76,8 @@ async function decrementStockAndReserve(slug: string, reserved: number) {
     [reserved]
   );
   const newStock = Array.isArray(result) ? result[0] : result;
-  return typeof newStock === "number" ? newStock : null;
+  if (typeof newStock !== "number" || newStock < 0) return null;
+  return newStock;
 }
 
 async function handleCheckoutSessionCompleted(event: Stripe.Event, eventId: string) {
