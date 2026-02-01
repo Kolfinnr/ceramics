@@ -9,7 +9,7 @@ type StoryblokStory = {
   slug: string;
   full_slug?: string;
   content?: {
-    stock?: number;
+    pcs?: number;
   };
 };
 
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
       for (const story of data.stories) {
         summary.total += 1;
         const slug = resolveSlug(story);
-        const stockValue = story.content?.stock;
+        const stockValue = story.content?.pcs;
         if (!slug || typeof stockValue !== "number") {
           summary.missingStock += 1;
           continue;

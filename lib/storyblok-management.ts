@@ -68,7 +68,7 @@ export async function updateProductStock(args: { slug: string; stock: number }) 
   const story = storyResponse.story;
   const content = {
     ...story.content,
-    stock: args.stock,
+    pcs: args.stock,
   };
 
   return await sbMgmt<Record<string, unknown>>(`/stories/${story.id}`, {
