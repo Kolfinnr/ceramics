@@ -89,6 +89,7 @@ export async function createOrderStory(args: {
   productSlug?: string;
   productSlugs?: string[];
   quantities?: Record<string, number>; // ✅ add
+  backorder?: Record<string, number>;
   status?: "paid" | "shipped" | "closed";
   customer: {
     name: string;
@@ -135,6 +136,7 @@ export async function createOrderStory(args: {
 
         // ✅ NEW: store quantities + delivery info
         quantities: args.quantities ?? {},
+        backorder: args.backorder ?? {},
         delivery_method: args.delivery?.method ?? "courier",
         inpost_point: args.delivery?.inpostPoint ?? null,
 
