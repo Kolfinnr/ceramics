@@ -97,6 +97,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event, eventId: stri
     metadata.productSlug ? [metadata.productSlug] : []
   );
   const quantities = safeParseJson<Record<string, number>>(metadata.quantities, {});
+  const backorderBySlug = safeParseJson<Record<string, number>>(metadata.backorder, {});
 
   const updatedStocks: Record<string, number> = {};
 
@@ -117,6 +118,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event, eventId: stri
       status: "paid",
       productSlugs,
       quantities,
+      backorder: backorderBySlug,
       customer: {
         name: customer?.name ?? "Unknown",
         email: customer?.email ?? "Unknown",
@@ -143,6 +145,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event, eventId: stri
     eventId,
     sessionId: session.id,
     updatedStocks,
+    backorderBySlug,
   });
 
   return NextResponse.json({ received: true }, { status: 200 });
@@ -155,6 +158,8 @@ async function handlePaymentIntentSucceeded(event: Stripe.Event, eventId: string
     reserveKey,
     intent.metadata?.reserved_in_stock
   );
+  const quantities = safeParseJson<Record<string, number>>(intent.metadata?.quantities, {});
+  const backorderBySlug = safeParseJson<Record<string, number>>(intent.metadata?.backorder, {});
 
   const updatedStocks: Record<string, number> = {};
 
@@ -172,7 +177,13 @@ async function handlePaymentIntentSucceeded(event: Stripe.Event, eventId: string
     ex: PROCESSED_EVENT_TTL_SECONDS,
   });
 
-  console.info("Payment intent succeeded.", { eventId, intentId: intent.id, updatedStocks });
+  console.info("Payment intent succeeded.", {
+    eventId,
+    intentId: intent.id,
+    updatedStocks,
+    quantities,
+    backorderBySlug,
+  });
   return NextResponse.json({ received: true }, { status: 200 });
 }
 
