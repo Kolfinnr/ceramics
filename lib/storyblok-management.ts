@@ -68,7 +68,7 @@ export async function updateProductStock(args: { slug: string; stock: number }) 
   const story = storyResponse.story;
   const content = {
     ...story.content,
-    stock: args.stock,
+    pcs: args.stock,
   };
 
   return await sbMgmt<Record<string, unknown>>(`/stories/${story.id}`, {
@@ -89,6 +89,7 @@ export async function createOrderStory(args: {
   productSlug?: string;
   productSlugs?: string[];
   quantities?: Record<string, number>; // ✅ add
+  backorder?: Record<string, number>;
   status?: "paid" | "shipped" | "closed";
   customer: {
     name: string;
@@ -135,6 +136,7 @@ export async function createOrderStory(args: {
 
         // ✅ NEW: store quantities + delivery info
         quantities: args.quantities ?? {},
+        backorder: args.backorder ?? {},
         delivery_method: args.delivery?.method ?? "courier",
         inpost_point: args.delivery?.inpostPoint ?? null,
 

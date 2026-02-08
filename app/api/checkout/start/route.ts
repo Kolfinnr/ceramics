@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { redis } from "@/lib/redis";
 import { reserveStock, type CheckoutItem } from "@/lib/checkout-reservation";
+import { fetchStoryblokPcs } from "@/lib/storyblok-stock";
 
 function getOrigin(req: Request) {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
@@ -91,6 +92,15 @@ export async function POST(req: Request) {
 
     const qtyBySlug = Object.fromEntries(
       items.map((item) => [item.productSlug, item.quantity])
+    );
+
+    await Promise.all(
+      items.map(async (item) => {
+        const pcs = await fetchStoryblokPcs(item.productSlug);
+        if (typeof pcs === "number") {
+          await redis.set(`stock:product:${item.productSlug}`, String(pcs));
+        }
+      })
     );
 
     const { reservedInStockBySlug: reservedBySlug, backorderBySlug } =
