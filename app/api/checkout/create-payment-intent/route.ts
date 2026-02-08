@@ -7,6 +7,7 @@ import {
   schedulePaymentIntentCleanup,
   type CheckoutItem,
 } from "@/lib/checkout-reservation";
+import { fetchStoryblokPcs } from "@/lib/storyblok-stock";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -97,6 +98,15 @@ export async function POST(req: Request) {
 
     const qtyBySlug = Object.fromEntries(
       items.map((item) => [item.productSlug, item.quantity])
+    );
+
+    await Promise.all(
+      items.map(async (item) => {
+        const pcs = await fetchStoryblokPcs(item.productSlug);
+        if (typeof pcs === "number") {
+          await redis.set(`stock:product:${item.productSlug}`, String(pcs));
+        }
+      })
     );
 
     const { reservedInStockBySlug: reservedBySlug, backorderBySlug } =
