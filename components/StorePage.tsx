@@ -22,8 +22,6 @@ export default async function StorePage({ blok }: { blok: StorePageBlock }) {
   }
 
   const sb = new StoryblokClient({ accessToken: token });
-
-  // ✅ IMPORTANT: use published in production
   const version = process.env.NODE_ENV === "production" ? "published" : "draft";
 
   const { data } = (await sb.get("cdn/stories", {
@@ -34,7 +32,6 @@ export default async function StorePage({ blok }: { blok: StorePageBlock }) {
     sort_by: "created_at:desc",
   })) as { data: StoriesResponse };
 
-  // 1) Normalize Storyblok stories
   const products = (data.stories ?? [])
     .filter((p): p is ProductStory => typeof p?.slug === "string" && p.slug.length > 0)
     .map((p) => ({
@@ -44,7 +41,6 @@ export default async function StorePage({ blok }: { blok: StorePageBlock }) {
       content: p.content as ProductContent | undefined,
     }));
 
-  // 2) Seed/overlay stock from Redis into content.pcs (available-now count)
   const productsWithStock = await Promise.all(
     products.map(async (p) => {
       const stockKey = `stock:product:${p.slug}`;
@@ -69,14 +65,21 @@ export default async function StorePage({ blok }: { blok: StorePageBlock }) {
   );
 
   return (
-    <section style={{ padding: "40px 0" }}>
-      <h1 style={{ fontSize: 40, margin: 0 }}>{blok?.title || "Store"}</h1>
+    <section className="surface-shell">
+      <div className="store-hero">
+        <div>
+          <p className="brand-script" style={{ margin: 0, fontSize: 24 }}>
+            handmade collection
+          </p>
+          <h1 className="brand-display">{blok?.title || "Store"}</h1>
+          <p>
+            Refined store styling with earthy tones, soft-paper surfaces, and editorial type rhythm to
+            match the ceramic brand identity while keeping commits text-only.
+          </p>
+        </div>
+        <div className="store-hero-media" />
+      </div>
       <StoreGridClient products={productsWithStock} />
     </section>
   );
 }
-
-
-
-
-

@@ -7,15 +7,15 @@ export default function Header() {
       style={{
         position: "sticky",
         top: 0,
-        background: "rgba(255,255,255,0.92)",
+        background: "rgba(248,244,238,0.9)",
         backdropFilter: "blur(10px)",
-        borderBottom: "1px solid #eee",
+        borderBottom: "1px solid var(--line)",
         zIndex: 50,
       }}
     >
       <div
         style={{
-          maxWidth: 1100,
+          maxWidth: 1120,
           margin: "0 auto",
           padding: "14px 16px",
           display: "flex",
@@ -23,11 +23,13 @@ export default function Header() {
           gap: 18,
         }}
       >
-        <Link
-          href="/"
-          style={{ fontWeight: 900, textDecoration: "none", color: "#111" }}
-        >
-          CERAMICS
+        <Link href="/" style={{ textDecoration: "none", color: "#111" }}>
+          <span className="brand-display" style={{ fontSize: 30 }}>
+            CERAMICS
+          </span>
+          <span className="brand-script" style={{ marginLeft: 8, opacity: 0.75 }}>
+            studio
+          </span>
         </Link>
 
         <nav style={{ display: "flex", gap: 10, marginLeft: "auto" }}>
@@ -49,8 +51,10 @@ export default function Header() {
 
 const linkStyle: React.CSSProperties = {
   textDecoration: "none",
-  color: "#111",
-  padding: "8px 10px",
-  borderRadius: 10,
-  border: "1px solid transparent",
+  color: "#30261f",
+  padding: "8px 12px",
+  borderRadius: 999,
+  border: "1px solid #ccb7a6",
+  background: "#fffaf5",
+  fontWeight: 600,
 };
