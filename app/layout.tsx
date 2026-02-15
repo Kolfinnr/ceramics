@@ -29,8 +29,8 @@ const titleFontAlt = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Ceramics",
-  description: "Handmade ceramics store",
+  title: "Fajna Ceramika",
+  description: "Fajna Ceramika handmade ceramics store",
 };
 
 export default function RootLayout({
