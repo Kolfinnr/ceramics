@@ -1,13 +1,24 @@
-export type StoryblokBlock = {
+import type { SbBlokData, SbBlokKeyDataTypes } from "@storyblok/js";
+
+export type StoryblokBlock = Omit<SbBlokData, "_uid" | "component"> & {
   _uid?: string;
   component?: string;
-  [key: string]: unknown;
+  [key: string]: SbBlokKeyDataTypes | undefined;
 };
 
 export type StoryblokImage = {
   id?: string | number;
   filename?: string;
   alt?: string;
+};
+
+export type StoryblokLink = {
+  id?: string;
+  linktype?: string;
+  url?: string;
+  cached_url?: string;
+  target?: string;
+  anchor?: string;
 };
 
 export type StoryblokStory<
