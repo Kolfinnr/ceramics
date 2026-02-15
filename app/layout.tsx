@@ -29,7 +29,7 @@ const titleFontAlt = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Ceramics",
+  title: "Fajna Ceramika",
   description: "Handmade ceramics store",
 };
 
