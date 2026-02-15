@@ -1,4 +1,5 @@
 import { storyblokEditable } from "@storyblok/react/rsc";
+import type { SbBlokData } from "@storyblok/js";
 import { StoryblokBlock } from "@/lib/storyblok-types";
 import BlockRenderer from "./BlockRenderer";
 
@@ -13,7 +14,7 @@ export default function LayeredStorySections({
 }) {
   return (
     <section
-      {...storyblokEditable(blok)}
+      {...storyblokEditable(blok as SbBlokData)}
       style={{
         width: "100vw",
         marginLeft: "calc(50% - 50vw)",
