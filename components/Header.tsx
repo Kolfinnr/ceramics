@@ -39,7 +39,7 @@ export default function Header() {
           }}
         >
           <span aria-hidden style={{ display: "inline-flex" }}>
-            <Image src={FineCeramicsLogo} alt="Fajna Ceramika logo" width={26} height={26} />
+            <Image src={FineCeramicsLogo} alt="Fajna Ceramika logo" width={40} height={40} />
           </span>
           Fajna Ceramika
         </Link>
