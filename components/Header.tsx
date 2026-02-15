@@ -69,4 +69,5 @@ const linkStyle: React.CSSProperties = {
   border: "1px solid transparent",
   fontFamily: 'var(--font-title-primary), var(--font-title-alt), "Times New Roman", serif',
   letterSpacing: "0.03em",
+  fontSize: 20,
 };
