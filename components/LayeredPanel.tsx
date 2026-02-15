@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { render } from "storyblok-rich-text-react-renderer";
 import { storyblokEditable } from "@storyblok/react/rsc";
-import type { SbBlokData } from "@storyblok/js";
 import { StoryblokBlock, StoryblokImage, StoryblokLink } from "@/lib/storyblok-types";
 
 type PanelAlignment = "left" | "center" | "right";
@@ -52,7 +51,7 @@ export default function LayeredPanel({ blok }: { blok: LayeredPanelBlock }) {
 
   return (
     <section
-      {...storyblokEditable(blok as SbBlokData)}
+      {...storyblokEditable(blok)}
       style={{
         position: "relative",
         display: "flex",

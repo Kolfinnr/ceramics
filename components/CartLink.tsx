@@ -15,7 +15,8 @@ export default function CartLink({ style }: { style: CSSProperties }) {
   }, []);
 
   return (
-    <Link href="/cart" style={style}>
+    <Link href="/cart" style={{ ...style, display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <span aria-hidden>🛒</span>
       Cart{count > 0 ? ` (${count})` : ""}
     </Link>
   );
