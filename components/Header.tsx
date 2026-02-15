@@ -1,5 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import CartLink from "./CartLink";
+import logoImage from "../Design_base/logo/pl/FineCeramics_pl.png";
 
 export default function Header() {
   return (
@@ -7,9 +10,8 @@ export default function Header() {
       style={{
         position: "sticky",
         top: 0,
-        background: "rgba(255,255,255,0.92)",
-        backdropFilter: "blur(10px)",
-        borderBottom: "1px solid #eee",
+        background: "#efe2cf",
+        borderBottom: "1px solid #d8c6ad",
         zIndex: 50,
       }}
     >
@@ -25,12 +27,31 @@ export default function Header() {
       >
         <Link
           href="/"
-          style={{ fontWeight: 900, textDecoration: "none", color: "#111" }}
+          style={{
+            fontWeight: 700,
+            textDecoration: "none",
+            color: "#2b2118",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            fontFamily:
+              'var(--font-title-primary), var(--font-title-alt), "Times New Roman", Times, serif',
+            fontSize: 28,
+          }}
         >
-          CERAMICS
+          <Image src={logoImage} alt="Fajna Ceramika logo" width={42} height={42} />
+          Fajna Ceramika
         </Link>
 
-        <nav style={{ display: "flex", gap: 10, marginLeft: "auto" }}>
+        <nav
+          style={{
+            display: "flex",
+            gap: 10,
+            marginLeft: "auto",
+            fontFamily:
+              'var(--font-title-primary), var(--font-title-alt), "Times New Roman", Times, serif',
+          }}
+        >
           <Link href="/" style={linkStyle}>
             Home
           </Link>
@@ -47,9 +68,9 @@ export default function Header() {
   );
 }
 
-const linkStyle: React.CSSProperties = {
+const linkStyle: CSSProperties = {
   textDecoration: "none",
-  color: "#111",
+  color: "#2b2118",
   padding: "8px 10px",
   borderRadius: 10,
   border: "1px solid transparent",
