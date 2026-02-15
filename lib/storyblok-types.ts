@@ -10,6 +10,15 @@ export type StoryblokImage = {
   alt?: string;
 };
 
+export type StoryblokLink = {
+  id?: string;
+  linktype?: string;
+  url?: string;
+  cached_url?: string;
+  target?: string;
+  anchor?: string;
+};
+
 export type StoryblokStory<
   TContent extends Record<string, unknown> = Record<string, unknown>,
 > = {
