@@ -40,19 +40,6 @@ body {
   letter-spacing: 0.02em;
 }
 
-.hero-image-stack {
-  position: relative;
-  width: fit-content;
-}
-
-.hero-image-backdrop {
-  position: absolute;
-  inset: 24px -24px -24px 24px;
-  border-radius: 14px;
-  border: 1px solid #dcccbc;
-  background: linear-gradient(145deg, #f5e6d8, #efe1d2);
-  z-index: 1;
-}
 
 .surface-shell {
   max-width: 1120px;

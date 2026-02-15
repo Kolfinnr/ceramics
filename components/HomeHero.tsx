@@ -42,22 +42,17 @@ export default function HomeHero({ blok }: { blok: HomeHeroBlock }) {
         )}
 
         {img && (
-          <div className="hero-image-stack">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={img}
-              alt={blok.hero_image?.alt || ""}
-              style={{
-                width: "100%",
-                maxWidth: 560,
-                borderRadius: 12,
-                border: "1px solid #d8c7b9",
-                position: "relative",
-                zIndex: 2,
-              }}
-            />
-            <div className="hero-image-backdrop" aria-hidden="true" />
-          </div>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={img}
+            alt={blok.hero_image?.alt || ""}
+            style={{
+              width: "100%",
+              maxWidth: 560,
+              borderRadius: 12,
+              border: "1px solid #d8c7b9",
+            }}
+          />
         )}
       </div>
     </section>
