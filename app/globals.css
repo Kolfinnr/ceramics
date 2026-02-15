@@ -25,13 +25,33 @@ body {
 }
 
 .brand-display {
-  font-family: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
-  letter-spacing: 0.04em;
+  font-family: var(--font-display), "Arial Narrow", Impact, sans-serif;
+  letter-spacing: 0.03em;
 }
 
 .brand-script {
-  font-family: "Times New Roman", Georgia, serif;
-  font-style: italic;
+  font-family: var(--font-brand), "Times New Roman", Georgia, serif;
+}
+
+.brand-heading {
+  font-family: var(--font-display), "Arial Narrow", Impact, sans-serif;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 0.98;
+  letter-spacing: 0.02em;
+}
+
+.hero-image-stack {
+  position: relative;
+  width: fit-content;
+}
+
+.hero-image-backdrop {
+  position: absolute;
+  inset: 24px -24px -24px 24px;
+  border-radius: 14px;
+  border: 1px solid #dcccbc;
+  background: linear-gradient(145deg, #f5e6d8, #efe1d2);
+  z-index: 1;
 }
 
 .surface-shell {

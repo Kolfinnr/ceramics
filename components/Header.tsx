@@ -1,5 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import CartLink from "./CartLink";
+import logo from "../Design_base/logo_old.jpg";
 
 export default function Header() {
   return (
@@ -23,12 +25,19 @@ export default function Header() {
           gap: 18,
         }}
       >
-        <Link href="/" style={{ textDecoration: "none", color: "#111" }}>
-          <span className="brand-display" style={{ fontSize: 30 }}>
-            CERAMICS
-          </span>
-          <span className="brand-script" style={{ marginLeft: 8, opacity: 0.75 }}>
-            studio
+        <Link
+          href="/"
+          style={{ textDecoration: "none", color: "#111", display: "inline-flex", alignItems: "center" }}
+        >
+          <Image
+            src={logo}
+            alt="Fajna Ceramika logo"
+            width={36}
+            height={36}
+            style={{ borderRadius: 999, marginRight: 10, objectFit: "cover" }}
+          />
+          <span className="brand-display" style={{ fontSize: 34 }}>
+            Fajna Ceramika
           </span>
         </Link>
 
