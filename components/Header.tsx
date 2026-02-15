@@ -1,5 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import CartLink from "./CartLink";
+import fineCeramicsLogo from "../Design_base/logo/eng/FineCeramics_eng.png";
 
 export default function Header() {
   return (
@@ -23,11 +25,13 @@ export default function Header() {
           gap: 18,
         }}
       >
-        <Link
-          href="/"
-          style={{ fontWeight: 900, textDecoration: "none", color: "#111" }}
-        >
-          CERAMICS
+        <Link href="/" aria-label="Fine Ceramics home" style={{ display: "inline-flex" }}>
+          <Image
+            src={fineCeramicsLogo}
+            alt="Fine Ceramics"
+            priority
+            style={{ height: "52px", width: "auto" }}
+          />
         </Link>
 
         <nav style={{ display: "flex", gap: 10, marginLeft: "auto" }}>
