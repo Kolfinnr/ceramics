@@ -22,12 +22,18 @@ const resolveHref = (link?: StoryblokLink | string): string | null => {
   if (!link) return null;
   if (typeof link === "string") return link;
 
+  if (link.linktype === "story" && link.story?.full_slug) {
+    return `/${link.story.full_slug}`;
+  }
+
   if (typeof link.url === "string" && link.url.length > 0) return link.url;
   if (typeof link.cached_url === "string" && link.cached_url.length > 0) {
     return link.cached_url.startsWith("/") ? link.cached_url : `/${link.cached_url}`;
   }
   return null;
 };
+
+const isExternalHref = (href: string) => /^https?:\/\//i.test(href);
 
 export default function LayeredPanel({ blok }: { blok: LayeredPanelBlock }) {
   const imageSrc = blok.background_image?.filename;
@@ -38,6 +44,7 @@ export default function LayeredPanel({ blok }: { blok: LayeredPanelBlock }) {
     ? Math.max(0, Math.min(parsedOpacity, 0.8))
     : 0.35;
   const href = resolveHref(blok.cta_link);
+  const isExternal = href ? isExternalHref(href) : false;
 
   const textAlign =
     alignment === "center" ? "center" : alignment === "right" ? "right" : "left";
@@ -127,6 +134,8 @@ export default function LayeredPanel({ blok }: { blok: LayeredPanelBlock }) {
           <div style={{ marginTop: 22 }}>
             <Link
               href={href}
+              target={isExternal ? "_blank" : undefined}
+              rel={isExternal ? "noopener noreferrer" : undefined}
               style={{
                 display: "inline-block",
                 padding: "11px 18px",
