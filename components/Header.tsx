@@ -1,5 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import CartLink from "./CartLink";
+import fineCeramicsLogo from "../Design_base/logo/eng/FineCeramics_eng.png";
 
 export default function Header() {
   return (
@@ -7,9 +9,9 @@ export default function Header() {
       style={{
         position: "sticky",
         top: 0,
-        background: "rgba(255,255,255,0.92)",
+        background: "rgba(250, 244, 232, 0.94)",
         backdropFilter: "blur(10px)",
-        borderBottom: "1px solid #eee",
+        borderBottom: "1px solid #d9ccb2",
         zIndex: 50,
       }}
     >
@@ -20,14 +22,16 @@ export default function Header() {
           padding: "14px 16px",
           display: "flex",
           alignItems: "center",
-          gap: 18,
+          gap: 14,
         }}
       >
         <Link
           href="/"
-          style={{ fontWeight: 900, textDecoration: "none", color: "#111" }}
+          aria-label="Fajna Ceramika home"
+          style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none" }}
         >
-          CERAMICS
+          <Image src={fineCeramicsLogo} alt="Fajna Ceramika" priority style={{ height: "52px", width: "auto" }} />
+          <span style={{ color: "#4a3822", fontSize: 24, letterSpacing: "0.04em" }}>Fajna Ceramika</span>
         </Link>
 
         <nav style={{ display: "flex", gap: 10, marginLeft: "auto" }}>
@@ -49,7 +53,7 @@ export default function Header() {
 
 const linkStyle: React.CSSProperties = {
   textDecoration: "none",
-  color: "#111",
+  color: "#4a3822",
   padding: "8px 10px",
   borderRadius: 10,
   border: "1px solid transparent",
