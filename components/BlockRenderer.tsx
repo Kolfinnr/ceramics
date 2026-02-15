@@ -32,6 +32,7 @@ export default function BlockRenderer({ blok }: { blok: StoryblokBlock }) {
     case "store_page":
       return <StorePage blok={blok} />;
 
+    case "layered_story_section":
     case "layered_story_sections":
       return <LayeredStorySections blok={blok} />;
 
