@@ -69,7 +69,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
   };
 
   return (
-    <div style={{ marginTop: 18 }}>
+    <div style={{ marginTop: 22 }}>
       {/* Controls */}
       <div
         style={{
@@ -77,7 +77,11 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
           gap: 12,
           flexWrap: "wrap",
           alignItems: "center",
-          marginBottom: 16,
+          marginBottom: 20,
+          border: "1px solid var(--line)",
+          padding: 14,
+          borderRadius: 16,
+          background: "#fffaf7",
         }}
       >
         <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -85,7 +89,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ddd" }}
+            style={{ padding: "8px 12px", borderRadius: 999, border: "1px solid #ccb7a6", background: "#fff" }}
           >
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -101,10 +105,10 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
             checked={showSold}
             onChange={(e) => setShowSold(e.target.checked)}
           />
-          <span>Show sold</span>
+          <span style={{ fontWeight: 600 }}>Show sold</span>
         </label>
 
-        <div style={{ marginLeft: "auto", color: "#555" }}>
+        <div className="brand-script" style={{ marginLeft: "auto", color: "#6e5b4b", fontSize: 22 }}>
           Showing <strong>{filtered.length}</strong> item(s)
         </div>
       </div>
@@ -114,7 +118,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: 16,
+          gap: 18,
         }}
       >
         {filtered.map((p) => (
@@ -143,7 +147,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
             style={{
               width: "min(1100px, 100%)",
               maxHeight: "90vh",
-              background: "#fff",
+              background: "var(--card)",
               borderRadius: 16,
               border: "1px solid #eee",
               boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
@@ -161,7 +165,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
                 borderBottom: "1px solid #eee",
                 position: "sticky",
                 top: 0,
-                background: "#fff",
+                background: "var(--card)",
                 zIndex: 1,
               }}
             >
@@ -172,7 +176,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
                 onClick={closeModal}
                 style={{
                   border: "1px solid #ddd",
-                  background: "#fff",
+                  background: "var(--card)",
                   borderRadius: 10,
                   padding: "8px 10px",
                   cursor: "pointer",

@@ -35,13 +35,14 @@ export default function ProductCard({
         display: "block",
         width: "100%",
         textAlign: "left",
-        border: "1px solid #eee",
-        borderRadius: 14,
+        border: "1px solid var(--line)",
+        borderRadius: 18,
         padding: 12,
-        background: "#fff",
+        background: "var(--card)",
         cursor: "pointer",
         color: "inherit",
-        opacity: available ? 1 : 0.7,
+        opacity: available ? 1 : 0.75,
+        boxShadow: "0 4px 20px rgba(75,42,22,0.08)",
       }}
     >
       {img && (
@@ -51,28 +52,23 @@ export default function ProductCard({
           alt={photos?.[0]?.alt || ""}
           style={{
             width: "100%",
-            height: 260,
+            height: 280,
             objectFit: "cover",
             borderRadius: 12,
-            border: "1px solid #eee",
+            border: "1px solid #eadccf",
           }}
         />
       )}
 
       <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
-        <div style={{ fontWeight: 700 }}>{title}</div>
+        <div className="brand-display" style={{ fontSize: 30, lineHeight: 1 }}>{title}</div>
 
-        {typeof price === "number" && <div style={{ color: "#444" }}>{price} PLN</div>}
+        {typeof price === "number" && (
+          <div style={{ color: "#4f4033", fontWeight: 600 }}>{price} PLN</div>
+        )}
 
-        {!available && <div style={{ color: "#b00", fontWeight: 800 }}>Sold</div>}
+        {!available && <div style={{ color: "#8a1e1e", fontWeight: 800 }}>Sold</div>}
       </div>
     </button>
   );
 }
-
-
-
-
-
-
-

@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
-import Header from "../components/Header"; // <- adjust path if needed
+import Header from "../components/Header";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const bebas = localFont({
+  src: "../Design_base/fonts/BebasNeue Regular.otf",
+  variable: "--font-display",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const manfred = localFont({
+  src: "../Design_base/fonts/Manfred Modern.ttf",
+  variable: "--font-brand",
 });
 
 export const metadata: Metadata = {
-  title: "Ceramics",
+  title: "Fajna Ceramika",
   description: "Handmade ceramics store",
 };
 
@@ -25,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${bebas.variable} ${manfred.variable} antialiased`}>
         <Header />
         {children}
       </body>

@@ -12,14 +12,14 @@ export default function HomeHero({ blok }: { blok: HomeHeroBlock }) {
   const img = blok.hero_image?.filename;
 
   return (
-    <section style={{ padding: "48px 0", borderBottom: "1px solid #eee" }}>
-      <div style={{ display: "grid", gap: 16 }}>
-        <h1 style={{ fontSize: 42, lineHeight: 1.1, margin: 0 }}>
+    <section style={{ padding: "52px 0", borderBottom: "1px solid var(--line)" }}>
+      <div style={{ display: "grid", gap: 20 }}>
+        <h1 className="brand-heading" style={{ margin: 0 }}>
           {blok.headline}
         </h1>
 
         {blok.subheadline && (
-          <p style={{ fontSize: 18, color: "#444", margin: 0 }}>
+          <p style={{ fontSize: 34, color: "#3d3027", margin: 0, lineHeight: 1.15 }}>
             {blok.subheadline}
           </p>
         )}
@@ -30,10 +30,11 @@ export default function HomeHero({ blok }: { blok: HomeHeroBlock }) {
             style={{
               display: "inline-block",
               padding: "12px 16px",
-              border: "1px solid #000",
+              border: "1px solid #30261f",
               width: "fit-content",
               textDecoration: "none",
-              color: "black",
+              color: "#1f1712",
+              background: "#fff9f3",
             }}
           >
             {blok.cta_label}
@@ -47,9 +48,9 @@ export default function HomeHero({ blok }: { blok: HomeHeroBlock }) {
             alt={blok.hero_image?.alt || ""}
             style={{
               width: "100%",
-              maxWidth: 520,
+              maxWidth: 560,
               borderRadius: 12,
-              border: "1px solid #eee",
+              border: "1px solid #d8c7b9",
             }}
           />
         )}
