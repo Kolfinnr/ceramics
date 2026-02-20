@@ -66,9 +66,12 @@ export default function CartView() {
     postalCode: "",
     city: "",
   });
+  const [awaitingBackorderConfirmation, setAwaitingBackorderConfirmation] =
+    useState(false);
   const resetClientSecret = () => {
     setClientSecret(null);
     setShowPayment(false);
+    setAwaitingBackorderConfirmation(false);
   };
 
   const isAddressValid = Boolean(
@@ -87,6 +90,7 @@ export default function CartView() {
       subscribeToCartChanges(() => {
         setItems(readCart());
         setClientSecret(null);
+        setAwaitingBackorderConfirmation(false);
       }),
     []
   );
@@ -158,6 +162,7 @@ export default function CartView() {
             city: customer.city,
             country: "PL",
           },
+          allowBackorder: awaitingBackorderConfirmation,
         }),
       });
 
@@ -165,14 +170,21 @@ export default function CartView() {
         clientSecret?: string;
         paymentIntentId?: string;
         error?: string;
+        requiresBackorderConfirmation?: boolean;
       };
 
       if (!response.ok || !data.clientSecret) {
+        if (response.status === 409 && data.requiresBackorderConfirmation) {
+          setAwaitingBackorderConfirmation(true);
+        } else {
+          setAwaitingBackorderConfirmation(false);
+        }
         setIntentError(data.error ?? "Unable to start checkout.");
         setIsLoading(false);
         return;
       }
 
+      setAwaitingBackorderConfirmation(false);
       setClientSecret(data.clientSecret);
       setShowPayment(true);
 
@@ -201,7 +213,7 @@ export default function CartView() {
   const handleClear = () => {
     clearCart();
     setItems([]);
-    setClientSecret(null);
+    resetClientSecret();
   };
 
   const handleResume = () => {
@@ -216,8 +228,7 @@ export default function CartView() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(PENDING_CHECKOUT_KEY);
     }
-    setClientSecret(null);
-    setShowPayment(false);
+    resetClientSecret();
     setPendingRefresh((value) => value + 1);
   };
 
@@ -415,7 +426,11 @@ export default function CartView() {
                     : undefined
                 }
               >
-                {isLoading ? "Preparing payment..." : "Continue to payment"}
+                {isLoading
+                  ? "Preparing payment..."
+                  : awaitingBackorderConfirmation
+                    ? "Continue to payment (accept wait time)"
+                    : "Continue to payment"}
               </button>
 
               <button
