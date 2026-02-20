@@ -39,7 +39,7 @@ export default function Header() {
           }}
         >
           <span aria-hidden style={{ display: "inline-flex" }}>
-            <Image src={FineCeramicsLogo} alt="Fajna Ceramika logo" width={40} height={40} />
+            <Image src={FineCeramicsLogo} alt="Fajna Ceramika logo" width={80} height={80} />
           </span>
           Fajna Ceramika
         </Link>
@@ -69,4 +69,5 @@ const linkStyle: React.CSSProperties = {
   border: "1px solid transparent",
   fontFamily: 'var(--font-title-primary), var(--font-title-alt), "Times New Roman", serif',
   letterSpacing: "0.03em",
+  fontSize: 20,
 };
