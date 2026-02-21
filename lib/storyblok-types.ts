@@ -17,6 +17,9 @@ export type StoryblokLink = {
   linktype?: string;
   url?: string;
   cached_url?: string;
+  story?: {
+    full_slug?: string;
+  };
   target?: string;
   anchor?: string;
 };

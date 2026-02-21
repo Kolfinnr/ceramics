@@ -30,12 +30,21 @@ type ReqBody = {
   }>;
   deliveryMethod: "courier" | "inpost";
   customer: CustomerInfo;
+  allowBackorder?: boolean;
 };
 
 type CompactItem = {
   slug: string;
   name: string;
   quantity: number;
+};
+
+const releaseReservedStock = async (reservedBySlug: Record<string, number>) => {
+  for (const [slug, reserved] of Object.entries(reservedBySlug)) {
+    if (reserved > 0) {
+      await redis.incrby(`reserve:product:${slug}`, -reserved);
+    }
+  }
 };
 
 export async function POST(req: Request) {
@@ -68,6 +77,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
+    const allowBackorder = body.allowBackorder === true;
     const deliveryMethod: "courier" | "inpost" =
       body.deliveryMethod === "inpost" ? "inpost" : "courier";
     if (
@@ -114,6 +124,20 @@ export async function POST(req: Request) {
 
     Object.assign(reservedInStockBySlug, reservedBySlug);
 
+    const hasBackorder = Object.values(backorderBySlug).some((value) => value > 0);
+    if (hasBackorder && !allowBackorder) {
+      await releaseReservedStock(reservedBySlug);
+      return NextResponse.json(
+        {
+          error:
+            "Some items are no longer in stock right now. Continue again to place this as a made-to-order purchase (2–3 business weeks).",
+          requiresBackorderConfirmation: true,
+          backorderBySlug,
+        },
+        { status: 409 }
+      );
+    }
+
     const compactItems: CompactItem[] = items.map((item) => ({
       slug: item.productSlug,
       name: item.productName,
@@ -159,11 +183,7 @@ export async function POST(req: Request) {
     );
   } catch (error: unknown) {
     try {
-      for (const [slug, reserved] of Object.entries(reservedInStockBySlug)) {
-        if (reserved > 0) {
-          await redis.incrby(`stock:product:${slug}`, reserved);
-        }
-      }
+      await releaseReservedStock(reservedInStockBySlug);
     } catch (rollbackErr) {
       console.error("Rollback failed:", rollbackErr);
     }
