@@ -2,12 +2,16 @@
 
 import { ProductStory } from "@/lib/storyblok-types";
 
+type CardVariant = "default" | "tall" | "wide";
+
 export default function ProductCard({
   product,
   onOpen,
+  variant = "default",
 }: {
   product: ProductStory;
   onOpen: (slug: string) => void;
+  variant?: CardVariant;
 }) {
   const slug = product?.slug;
   const content = product?.content ?? {};
@@ -31,8 +35,11 @@ export default function ProductCard({
     <button
       type="button"
       onClick={() => onOpen(slug)}
+      className={`store-card store-card--${variant}`}
       style={{
-        display: "block",
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
         width: "100%",
         textAlign: "left",
         border: "1px solid #eee",
@@ -45,20 +52,29 @@ export default function ProductCard({
       }}
     >
       {img && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={img}
-          alt={photos?.[0]?.alt || ""}
+        <div
           style={{
-            width: "100%",
-            height: "auto",
-            maxHeight: 360,
-            objectFit: "contain",
+            flex: 1,
+            minHeight: 0,
+            display: "grid",
+            placeItems: "center",
             borderRadius: 12,
             border: "1px solid #eee",
             background: "#fafafa",
+            overflow: "hidden",
           }}
-        />
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={img}
+            alt={photos?.[0]?.alt || ""}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+            }}
+          />
+        </div>
       )}
 
       <div style={{ marginTop: 10, display: "grid", gap: 6 }}>

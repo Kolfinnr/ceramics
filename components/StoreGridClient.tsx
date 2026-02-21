@@ -6,6 +6,39 @@ import ProductCard from "./ProductCard";
 import CeramicItem from "./CeramicItem";
 import { ProductStory } from "@/lib/storyblok-types";
 
+type CardVariant = "default" | "tall" | "wide";
+
+const parseRatioFromFilename = (filename?: string): number | null => {
+  if (!filename) return null;
+  const match = filename.match(/\/(\d+)x(\d+)\//);
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+  return width / height;
+};
+
+const resolveCardVariant = (product: ProductStory): CardVariant => {
+  const rawType = (product?.content as { type?: unknown } | undefined)?.type;
+  const normalized = typeof rawType === "string" ? rawType.trim().toLowerCase() : "";
+
+  if (normalized === "default" || normalized === "tall" || normalized === "wide") {
+    return normalized;
+  }
+
+  const firstPhoto = (product?.content as { photos?: Array<{ filename?: string }> } | undefined)?.photos?.[0];
+  const ratio = parseRatioFromFilename(firstPhoto?.filename);
+
+  if (typeof ratio === "number") {
+    if (ratio < 0.7) return "tall";
+    if (ratio > 1.35) return "wide";
+  }
+
+  return "default";
+};
+
 export default function StoreGridClient({ products }: { products: ProductStory[] }) {
   const [showSold, setShowSold] = useState(false);
   const [category, setCategory] = useState<string>("all");
@@ -134,16 +167,55 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
 
       {/* Grid */}
       <div
+        className="store-grid-collage"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
+          gridAutoRows: 170,
           gap: 16,
         }}
       >
         {filtered.map((p) => (
-          <ProductCard key={p.uuid ?? p.slug} product={p} onOpen={openModal} />
+          <ProductCard
+            key={p.uuid ?? p.slug}
+            product={p}
+            onOpen={openModal}
+            variant={resolveCardVariant(p)}
+          />
         ))}
       </div>
+
+      <style>{`
+        .store-card--default {
+          grid-column: span 3;
+          grid-row: span 1;
+        }
+
+        .store-card--tall {
+          grid-column: span 2;
+          grid-row: span 2;
+        }
+
+        .store-card--wide {
+          grid-column: span 2;
+          grid-row: span 1;
+        }
+
+        @media (max-width: 900px) {
+          .store-grid-collage {
+            grid-template-columns: 1fr !important;
+            grid-auto-rows: auto !important;
+          }
+
+          .store-card--default,
+          .store-card--tall,
+          .store-card--wide {
+            grid-column: span 1 !important;
+            grid-row: span 1 !important;
+            min-height: 0 !important;
+          }
+        }
+      `}</style>
 
       {/* Modal */}
       {openSlug && (
