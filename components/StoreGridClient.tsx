@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import ProductCard from "./ProductCard";
 import CeramicItem from "./CeramicItem";
@@ -52,6 +52,28 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
   const [openStory, setOpenStory] = useState<ProductStory | null>(null);
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
+
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const masonryConfig = useRef({ rowHeight: 8, gap: 16 });
+
+  const setCardRef = useCallback((key: string, node: HTMLDivElement | null) => {
+    if (node) {
+      cardRefs.current.set(key, node);
+      return;
+    }
+    cardRefs.current.delete(key);
+  }, []);
+
+  const applyMasonryLayout = useCallback(() => {
+    const { rowHeight, gap } = masonryConfig.current;
+
+    cardRefs.current.forEach((item) => {
+      item.style.gridRowEnd = "auto";
+      const itemHeight = item.getBoundingClientRect().height;
+      const rowSpan = Math.ceil((itemHeight + gap) / (rowHeight + gap));
+      item.style.gridRowEnd = `span ${Math.max(rowSpan, 1)}`;
+    });
+  }, []);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -124,6 +146,38 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
     void openModal(initialItemSlug);
   }, [initialItemSlug, openSlug, loadingStory, products]);
 
+  useEffect(() => {
+    const runLayout = () => window.requestAnimationFrame(applyMasonryLayout);
+    const cleanupFns: Array<() => void> = [];
+
+    const observer = new ResizeObserver(() => runLayout());
+
+    cardRefs.current.forEach((item) => {
+      observer.observe(item);
+
+      const images = Array.from(item.querySelectorAll("img"));
+      images.forEach((image) => {
+        if (image.complete) return;
+        const onDone = () => runLayout();
+        image.addEventListener("load", onDone);
+        image.addEventListener("error", onDone);
+        cleanupFns.push(() => {
+          image.removeEventListener("load", onDone);
+          image.removeEventListener("error", onDone);
+        });
+      });
+    });
+
+    window.addEventListener("resize", runLayout);
+    runLayout();
+
+    return () => {
+      cleanupFns.forEach((fn) => fn());
+      window.removeEventListener("resize", runLayout);
+      observer.disconnect();
+    };
+  }, [applyMasonryLayout, filtered]);
+
   return (
     <div style={{ marginTop: 18 }}>
       {/* Controls */}
@@ -170,50 +224,57 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
         className="store-grid-collage"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gridAutoRows: 280,
+          gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+          gridAutoRows: 8,
           gridAutoFlow: "dense",
           gap: 16,
         }}
       >
-        {filtered.map((p) => (
-          <ProductCard
-            key={p.uuid ?? p.slug}
-            product={p}
-            onOpen={openModal}
-            variant={resolveCardVariant(p)}
-          />
-        ))}
+        {filtered.map((p, idx) => {
+          const key = p.uuid ?? p.slug ?? `idx-${idx}`;
+          const variant = resolveCardVariant(p);
+          const isLarge = variant === "wide";
+
+          return (
+            <div
+              key={key}
+              ref={(node) => setCardRef(key, node)}
+              className={`store-masonry-item ${isLarge ? "store-masonry-item--large" : ""}`}
+            >
+              <ProductCard product={p} onOpen={openModal} variant={variant} />
+            </div>
+          );
+        })}
       </div>
 
       <style>{`
-        .store-card--default {
-          grid-column: span 1;
-          grid-row: span 1;
+        .store-masonry-item {
+          grid-column: span 4;
         }
 
-        .store-card--tall {
-          grid-column: span 1;
-          grid-row: span 2;
+        .store-masonry-item--large {
+          grid-column: span 8;
         }
 
-        .store-card--wide {
-          grid-column: span 2;
-          grid-row: span 1;
+        @media (max-width: 1100px) {
+          .store-masonry-item {
+            grid-column: span 6;
+          }
+
+          .store-masonry-item--large {
+            grid-column: span 12;
+          }
         }
 
         @media (max-width: 900px) {
           .store-grid-collage {
-            grid-template-columns: 1fr !important;
-            grid-auto-rows: auto !important;
+            grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
           }
 
-          .store-card--default,
-          .store-card--tall,
-          .store-card--wide {
-            grid-column: span 1 !important;
-            grid-row: span 1 !important;
-            min-height: 320px !important;
+          .store-masonry-item,
+          .store-masonry-item--large {
+            grid-column: span 12 !important;
+            grid-row-end: auto !important;
           }
         }
       `}</style>

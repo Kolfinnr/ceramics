@@ -37,52 +37,35 @@ export default function ProductCard({
       onClick={() => onOpen(slug)}
       className={`store-card store-card--${variant}`}
       style={{
-        display: "grid",
-        gridTemplateRows: "minmax(0, 1fr) auto",
-        gap: 10,
-        height: "100%",
+        display: "block",
         width: "100%",
         textAlign: "left",
         border: "1px solid #eee",
         borderRadius: 14,
-        padding: 12,
         background: "#fff",
         cursor: "pointer",
         color: "inherit",
         opacity: available ? 1 : 0.7,
         overflow: "hidden",
+        padding: 0,
       }}
     >
       {img && (
-        <div
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={img}
+          alt={photos?.[0]?.alt || ""}
           style={{
-            flex: 1,
-            minHeight: 0,
-            display: "grid",
-            placeItems: "center",
-            borderRadius: 12,
-            border: "1px solid #eee",
-            background: "#fafafa",
-            overflow: "hidden",
+            width: "100%",
+            height: "auto",
+            display: "block",
+            objectFit: "cover",
+            borderBottom: "1px solid #eee",
           }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={img}
-            alt={photos?.[0]?.alt || ""}
-            style={{
-              display: "block",
-              width: "auto",
-              height: "auto",
-              maxWidth: "100%",
-              maxHeight: "100%",
-              objectFit: "contain",
-            }}
-          />
-        </div>
+        />
       )}
 
-      <div style={{ display: "grid", gap: 6 }}>
+      <div style={{ padding: "10px 12px", display: "grid", gap: 6 }}>
         <div style={{ fontWeight: 700 }}>{title}</div>
 
         {typeof price === "number" && <div style={{ color: "#444" }}>{price} PLN</div>}
@@ -92,10 +75,3 @@ export default function ProductCard({
     </button>
   );
 }
-
-
-
-
-
-
-
