@@ -25,6 +25,7 @@ type StoriesResponse = {
 };
 
 type FeaturedItem = {
+  uuid: string | null;
   slug: string;
   name: string;
   price: number | null;
@@ -57,6 +58,18 @@ const linkToSlug = (link: StoryblokLink | string): string | null => {
 
   if (typeof link.story?.full_slug === "string" && link.story.full_slug.length > 0) {
     return normalizeSlug(link.story.full_slug);
+  }
+
+  if (typeof (link as { full_slug?: unknown }).full_slug === "string") {
+    return normalizeSlug((link as { full_slug: string }).full_slug);
+  }
+
+  if (typeof (link as { slug?: unknown }).slug === "string") {
+    return normalizeSlug((link as { slug: string }).slug);
+  }
+
+  if (typeof (link as { uuid?: unknown }).uuid === "string") {
+    return (link as { uuid: string }).uuid;
   }
 
   if (typeof link.cached_url === "string" && link.cached_url.length > 0) {
@@ -136,6 +149,7 @@ async function fetchProductsWithAvailability(): Promise<FeaturedItem[]> {
       const storySlug = typeof p.slug === "string" ? p.slug : "";
 
       return {
+        uuid: typeof p.uuid === "string" ? p.uuid : null,
         slug: normalizeSlug(storySlug),
         name: content.name || p.name || "Product",
         price: Number.isFinite(price) ? price : null,
@@ -174,9 +188,14 @@ function selectFeaturedItems(blok: FeaturedGridBlock, all: FeaturedItem[]) {
     const selection = Array.isArray(blok.manual_items)
       ? blok.manual_items.map(linkToSlug).filter((slug): slug is string => Boolean(slug))
       : [];
-    const bySlug = new Map(pool.map((item) => [item.slug, item]));
+    const byKey = new Map<string, FeaturedItem>();
+    for (const item of pool) {
+      byKey.set(item.slug, item);
+      if (item.uuid) byKey.set(item.uuid, item);
+    }
+
     const picked = selection
-      .map((slug) => bySlug.get(slug))
+      .map((key) => byKey.get(key))
       .filter((item): item is FeaturedItem => Boolean(item));
     return picked.slice(0, limit);
   }
@@ -226,7 +245,7 @@ export default async function FeaturedGrid({ blok }: { blok: FeaturedGridBlock }
           {featured.map((item) => (
             <Link
               key={item.slug}
-              href={`/store/${item.slug}`}
+              href={`/store?item=${encodeURIComponent(item.slug)}`}
               style={{
                 display: "grid",
                 gap: 8,
