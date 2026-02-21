@@ -113,7 +113,12 @@ async function fetchProductsWithAvailability(): Promise<FeaturedItem[]> {
   })) as { data: StoriesResponse };
 
   const products = (data.stories ?? [])
-    .filter((p): p is ProductStory => typeof p?.slug === "string" && p.slug.length > 0)
+    .filter((p): p is ProductStory => {
+      const slugOk = typeof p?.slug === "string" && p.slug.length > 0;
+      const component = (p.content as { component?: unknown } | undefined)?.component;
+      const componentOk = component === undefined || component === "ceramic_item";
+      return slugOk && componentOk;
+    })
     .map((p) => {
       const content = (p.content ?? {}) as ProductContent;
       const photos = Array.isArray(content.photos) ? content.photos : [];
@@ -128,8 +133,10 @@ async function fetchProductsWithAvailability(): Promise<FeaturedItem[]> {
         ? content.category.filter((value): value is string => typeof value === "string")
         : [];
 
+      const storySlug = typeof p.slug === "string" ? p.slug : "";
+
       return {
-        slug: normalizeSlug(p.slug),
+        slug: normalizeSlug(storySlug),
         name: content.name || p.name || "Product",
         price: Number.isFinite(price) ? price : null,
         photo: photos[0]?.filename ?? null,
