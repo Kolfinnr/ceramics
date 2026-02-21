@@ -51,10 +51,12 @@ export default function ProductCard({
           alt={photos?.[0]?.alt || ""}
           style={{
             width: "100%",
-            height: 260,
-            objectFit: "cover",
+            height: "auto",
+            maxHeight: 360,
+            objectFit: "contain",
             borderRadius: 12,
             border: "1px solid #eee",
+            background: "#fafafa",
           }}
         />
       )}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import ProductCard from "./ProductCard";
 import CeramicItem from "./CeramicItem";
 import { ProductStory } from "@/lib/storyblok-types";
@@ -10,6 +11,11 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
   const [category, setCategory] = useState<string>("all");
 
   const [openSlug, setOpenSlug] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const initialItemSlug = searchParams.get("item");
+
   const [openStory, setOpenStory] = useState<ProductStory | null>(null);
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
@@ -40,6 +46,13 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
     setOpenStory(null);
     setStoryError(null);
     setLoadingStory(false);
+
+    if (searchParams.has("item")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("item");
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    }
   };
 
   const openModal = async (slug: string) => {
@@ -67,6 +80,16 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
       setLoadingStory(false);
     }
   };
+
+  useEffect(() => {
+    if (!initialItemSlug) return;
+    if (openSlug === initialItemSlug || loadingStory) return;
+
+    const exists = products.some((p) => p.slug === initialItemSlug);
+    if (!exists) return;
+
+    void openModal(initialItemSlug);
+  }, [initialItemSlug, openSlug, loadingStory, products]);
 
   return (
     <div style={{ marginTop: 18 }}>
