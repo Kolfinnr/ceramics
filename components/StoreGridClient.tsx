@@ -56,24 +56,34 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const masonryConfig = useRef({ rowHeight: 8, gap: 16 });
 
+  const measureRowSpan = useCallback((item: HTMLDivElement) => {
+    const { rowHeight, gap } = masonryConfig.current;
+    item.style.gridRowEnd = "auto";
+
+    const card = item.firstElementChild as HTMLElement | null;
+    const measuredHeight = Math.max(
+      item.getBoundingClientRect().height,
+      item.scrollHeight,
+      card?.getBoundingClientRect().height ?? 0,
+      card?.scrollHeight ?? 0,
+    );
+
+    const rowSpan = Math.ceil((measuredHeight + gap) / (rowHeight + gap));
+    item.style.gridRowEnd = `span ${Math.max(rowSpan, 1)}`;
+  }, []);
+
   const setCardRef = useCallback((key: string, node: HTMLDivElement | null) => {
     if (node) {
       cardRefs.current.set(key, node);
+      window.requestAnimationFrame(() => measureRowSpan(node));
       return;
     }
     cardRefs.current.delete(key);
-  }, []);
+  }, [measureRowSpan]);
 
   const applyMasonryLayout = useCallback(() => {
-    const { rowHeight, gap } = masonryConfig.current;
-
-    cardRefs.current.forEach((item) => {
-      item.style.gridRowEnd = "auto";
-      const itemHeight = item.getBoundingClientRect().height;
-      const rowSpan = Math.ceil((itemHeight + gap) / (rowHeight + gap));
-      item.style.gridRowEnd = `span ${Math.max(rowSpan, 1)}`;
-    });
-  }, []);
+    cardRefs.current.forEach((item) => measureRowSpan(item));
+  }, [measureRowSpan]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -147,7 +157,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
   }, [initialItemSlug, openSlug, loadingStory, products]);
 
   useEffect(() => {
-    const runLayout = () => window.requestAnimationFrame(applyMasonryLayout);
+    const runLayout = () => window.requestAnimationFrame(() => window.requestAnimationFrame(applyMasonryLayout));
     const cleanupFns: Array<() => void> = [];
 
     const observer = new ResizeObserver(() => runLayout());
@@ -250,6 +260,9 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
       <style>{`
         .store-masonry-item {
           grid-column: span 4;
+          grid-row-end: span 1;
+          overflow: hidden;
+          border-radius: 14px;
         }
 
         .store-masonry-item--large {
@@ -274,7 +287,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
           .store-masonry-item,
           .store-masonry-item--large {
             grid-column: span 12 !important;
-            grid-row-end: auto !important;
+            grid-row-end: span 1 !important;
           }
         }
       `}</style>

@@ -26,10 +26,18 @@ export default function ProductCard({
   }
 
   const title = content?.name || product?.name || "Product";
-  const price = content?.price_pln;
+  const rawPrice = content?.price_pln;
+  const price =
+    typeof rawPrice === "number"
+      ? rawPrice
+      : typeof rawPrice === "string"
+        ? Number(rawPrice.replace(",", "."))
+        : null;
   const photos = content?.photos || [];
   const img = photos?.[0]?.filename;
   const available = content?.status !== false;
+  const pcs = Number(content?.pcs);
+  const availableNow = Number.isFinite(pcs) ? Math.max(0, pcs) : available ? 1 : 0;
 
   return (
     <button
@@ -68,9 +76,11 @@ export default function ProductCard({
       <div style={{ padding: "10px 12px", display: "grid", gap: 6 }}>
         <div style={{ fontWeight: 700 }}>{title}</div>
 
-        {typeof price === "number" && <div style={{ color: "#444" }}>{price} PLN</div>}
+        {Number.isFinite(price) && <div style={{ color: "#444" }}>{price} PLN</div>}
 
-        {!available && <div style={{ color: "#b00", fontWeight: 800 }}>Sold</div>}
+        <div style={{ fontSize: 13, color: availableNow > 0 ? "#355a2f" : "#8c4d0f" }}>
+          {availableNow > 0 ? `${availableNow} ready now` : "Made to order (2–3 weeks)"}
+        </div>
       </div>
     </button>
   );
