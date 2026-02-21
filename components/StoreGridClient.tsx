@@ -171,7 +171,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gridAutoRows: 240,
+          gridAutoRows: 280,
           gridAutoFlow: "dense",
           gap: 16,
         }}

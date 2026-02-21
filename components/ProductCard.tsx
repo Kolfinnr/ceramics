@@ -71,8 +71,11 @@ export default function ProductCard({
             src={img}
             alt={photos?.[0]?.alt || ""}
             style={{
-              width: "100%",
-              height: "100%",
+              display: "block",
+              width: "auto",
+              height: "auto",
+              maxWidth: "100%",
+              maxHeight: "100%",
               objectFit: "contain",
             }}
           />
