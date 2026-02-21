@@ -37,8 +37,9 @@ export default function ProductCard({
       onClick={() => onOpen(slug)}
       className={`store-card store-card--${variant}`}
       style={{
-        display: "flex",
-        flexDirection: "column",
+        display: "grid",
+        gridTemplateRows: "minmax(0, 1fr) auto",
+        gap: 10,
         height: "100%",
         width: "100%",
         textAlign: "left",
@@ -49,6 +50,7 @@ export default function ProductCard({
         cursor: "pointer",
         color: "inherit",
         opacity: available ? 1 : 0.7,
+        overflow: "hidden",
       }}
     >
       {img && (
@@ -61,6 +63,7 @@ export default function ProductCard({
             borderRadius: 12,
             border: "1px solid #eee",
             background: "#fafafa",
+            overflow: "hidden",
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -68,17 +71,15 @@ export default function ProductCard({
             src={img}
             alt={photos?.[0]?.alt || ""}
             style={{
-              maxWidth: "100%",
-              maxHeight: "100%",
-              width: "auto",
-              height: "auto",
+              width: "100%",
+              height: "100%",
               objectFit: "contain",
             }}
           />
         </div>
       )}
 
-      <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
+      <div style={{ display: "grid", gap: 6 }}>
         <div style={{ fontWeight: 700 }}>{title}</div>
 
         {typeof price === "number" && <div style={{ color: "#444" }}>{price} PLN</div>}
