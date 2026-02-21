@@ -170,8 +170,8 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
         className="store-grid-collage"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gridAutoRows: 220,
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gridAutoRows: 240,
           gridAutoFlow: "dense",
           gap: 16,
         }}
@@ -200,16 +200,6 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
         .store-card--wide {
           grid-column: span 2;
           grid-row: span 1;
-        }
-
-        @media (max-width: 1100px) {
-          .store-grid-collage {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
-
-          .store-card--wide {
-            grid-column: span 2;
-          }
         }
 
         @media (max-width: 900px) {
