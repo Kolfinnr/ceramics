@@ -1,18 +1,89 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import ProductCard from "./ProductCard";
 import CeramicItem from "./CeramicItem";
 import { ProductStory } from "@/lib/storyblok-types";
+
+type CardVariant = "default" | "tall" | "wide";
+
+const parseRatioFromFilename = (filename?: string): number | null => {
+  if (!filename) return null;
+  const match = filename.match(/\/(\d+)x(\d+)\//);
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+  return width / height;
+};
+
+const resolveCardVariant = (product: ProductStory): CardVariant => {
+  const rawType = (product?.content as { type?: unknown } | undefined)?.type;
+  const normalized = typeof rawType === "string" ? rawType.trim().toLowerCase() : "";
+
+  if (normalized === "default" || normalized === "tall" || normalized === "wide") {
+    return normalized;
+  }
+
+  const firstPhoto = (product?.content as { photos?: Array<{ filename?: string }> } | undefined)?.photos?.[0];
+  const ratio = parseRatioFromFilename(firstPhoto?.filename);
+
+  if (typeof ratio === "number") {
+    if (ratio < 0.7) return "tall";
+    if (ratio > 1.35) return "wide";
+  }
+
+  return "default";
+};
 
 export default function StoreGridClient({ products }: { products: ProductStory[] }) {
   const [showSold, setShowSold] = useState(false);
   const [category, setCategory] = useState<string>("all");
 
   const [openSlug, setOpenSlug] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const initialItemSlug = searchParams.get("item");
+
   const [openStory, setOpenStory] = useState<ProductStory | null>(null);
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
+
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const masonryConfig = useRef({ rowHeight: 8, gap: 16 });
+
+  const measureRowSpan = useCallback((item: HTMLDivElement) => {
+    const { rowHeight, gap } = masonryConfig.current;
+    item.style.gridRowEnd = "auto";
+
+    const card = item.firstElementChild as HTMLElement | null;
+    const measuredHeight = Math.max(
+      item.getBoundingClientRect().height,
+      item.scrollHeight,
+      card?.getBoundingClientRect().height ?? 0,
+      card?.scrollHeight ?? 0,
+    );
+
+    const rowSpan = Math.ceil((measuredHeight + gap) / (rowHeight + gap));
+    item.style.gridRowEnd = `span ${Math.max(rowSpan, 1)}`;
+  }, []);
+
+  const setCardRef = useCallback((key: string, node: HTMLDivElement | null) => {
+    if (node) {
+      cardRefs.current.set(key, node);
+      window.requestAnimationFrame(() => measureRowSpan(node));
+      return;
+    }
+    cardRefs.current.delete(key);
+  }, [measureRowSpan]);
+
+  const applyMasonryLayout = useCallback(() => {
+    cardRefs.current.forEach((item) => measureRowSpan(item));
+  }, [measureRowSpan]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -40,6 +111,13 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
     setOpenStory(null);
     setStoryError(null);
     setLoadingStory(false);
+
+    if (searchParams.has("item")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("item");
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    }
   };
 
   const openModal = async (slug: string) => {
@@ -67,6 +145,48 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
       setLoadingStory(false);
     }
   };
+
+  useEffect(() => {
+    if (!initialItemSlug) return;
+    if (openSlug === initialItemSlug || loadingStory) return;
+
+    const exists = products.some((p) => p.slug === initialItemSlug);
+    if (!exists) return;
+
+    void openModal(initialItemSlug);
+  }, [initialItemSlug, openSlug, loadingStory, products]);
+
+  useEffect(() => {
+    const runLayout = () => window.requestAnimationFrame(() => window.requestAnimationFrame(applyMasonryLayout));
+    const cleanupFns: Array<() => void> = [];
+
+    const observer = new ResizeObserver(() => runLayout());
+
+    cardRefs.current.forEach((item) => {
+      observer.observe(item);
+
+      const images = Array.from(item.querySelectorAll("img"));
+      images.forEach((image) => {
+        if (image.complete) return;
+        const onDone = () => runLayout();
+        image.addEventListener("load", onDone);
+        image.addEventListener("error", onDone);
+        cleanupFns.push(() => {
+          image.removeEventListener("load", onDone);
+          image.removeEventListener("error", onDone);
+        });
+      });
+    });
+
+    window.addEventListener("resize", runLayout);
+    runLayout();
+
+    return () => {
+      cleanupFns.forEach((fn) => fn());
+      window.removeEventListener("resize", runLayout);
+      observer.disconnect();
+    };
+  }, [applyMasonryLayout, filtered]);
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -111,16 +231,66 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
 
       {/* Grid */}
       <div
+        className="store-grid-collage"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+          gridAutoRows: 8,
+          gridAutoFlow: "dense",
           gap: 16,
         }}
       >
-        {filtered.map((p) => (
-          <ProductCard key={p.uuid ?? p.slug} product={p} onOpen={openModal} />
-        ))}
+        {filtered.map((p, idx) => {
+          const key = p.uuid ?? p.slug ?? `idx-${idx}`;
+          const variant = resolveCardVariant(p);
+          const isLarge = variant === "wide";
+
+          return (
+            <div
+              key={key}
+              ref={(node) => setCardRef(key, node)}
+              className={`store-masonry-item ${isLarge ? "store-masonry-item--large" : ""}`}
+            >
+              <ProductCard product={p} onOpen={openModal} variant={variant} />
+            </div>
+          );
+        })}
       </div>
+
+      <style>{`
+        .store-masonry-item {
+          grid-column: span 4;
+          grid-row-end: span 1;
+          overflow: hidden;
+          border-radius: 14px;
+        }
+
+        .store-masonry-item--large {
+          grid-column: span 8;
+        }
+
+        @media (max-width: 1100px) {
+          .store-masonry-item {
+            grid-column: span 6;
+          }
+
+          .store-masonry-item--large {
+            grid-column: span 12;
+          }
+        }
+
+        @media (max-width: 900px) {
+          .store-grid-collage {
+            grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+          }
+
+          .store-masonry-item,
+          .store-masonry-item--large {
+            grid-column: span 12 !important;
+            grid-row-end: span 1 !important;
+          }
+        }
+      `}</style>
 
       {/* Modal */}
       {openSlug && (

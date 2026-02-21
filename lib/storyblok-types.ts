@@ -17,6 +17,9 @@ export type StoryblokLink = {
   linktype?: string;
   url?: string;
   cached_url?: string;
+  story?: {
+    full_slug?: string;
+  };
   target?: string;
   anchor?: string;
 };
@@ -33,6 +36,7 @@ export type StoryblokStory<
 
 export type ProductContent = {
   name?: string;
+  type?: string;
   price_pln?: number | string;
   photos?: StoryblokImage[];
   status?: boolean;
