@@ -36,6 +36,7 @@ export type StoryblokStory<
 
 export type ProductContent = {
   name?: string;
+  type?: string;
   price_pln?: number | string;
   photos?: StoryblokImage[];
   status?: boolean;
