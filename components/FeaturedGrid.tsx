@@ -1,4 +1,3 @@
-import Link from "next/link";
 import StoryblokClient from "storyblok-js-client";
 import { redis } from "@/lib/redis";
 import {
@@ -7,6 +6,7 @@ import {
   StoryblokBlock,
   StoryblokLink,
 } from "@/lib/storyblok-types";
+import FeaturedGridClient from "./FeaturedGridClient";
 
 type FeaturedGridBlock = StoryblokBlock & {
   title?: string;
@@ -234,53 +234,7 @@ export default async function FeaturedGrid({ blok }: { blok: FeaturedGridBlock }
       {featured.length === 0 ? (
         <p style={{ color: "#6a5b4e" }}>No featured products available right now.</p>
       ) : (
-        <div
-          style={{
-            marginTop: 18,
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {featured.map((item) => (
-            <Link
-              key={item.slug}
-              href={`/store?item=${encodeURIComponent(item.slug)}`}
-              style={{
-                display: "grid",
-                gap: 8,
-                textDecoration: "none",
-                color: "inherit",
-                border: "1px solid #d9cbb8",
-                borderRadius: 14,
-                background: "rgba(255, 255, 255, 0.55)",
-                padding: 10,
-              }}
-            >
-              {item.photo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={item.photo}
-                  alt={item.photoAlt || item.name}
-                  style={{
-                    width: "100%",
-                    height: 180,
-                    objectFit: "cover",
-                    borderRadius: 10,
-                    border: "1px solid #eadfce",
-                  }}
-                />
-              )}
-              <strong style={{ fontSize: 18 }}>{item.name}</strong>
-              {typeof item.price === "number" && <span>{item.price} PLN</span>}
-              <span style={{ fontSize: 13, color: item.availableNow > 0 ? "#355a2f" : "#8c4d0f" }}>
-                {item.availableNow > 0
-                  ? `${item.availableNow} ready now`
-                  : "Made to order (2–3 weeks)"}
-              </span>
-            </Link>
-          ))}
-        </div>
+        <FeaturedGridClient items={featured} />
       )}
     </section>
   );
