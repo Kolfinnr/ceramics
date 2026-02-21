@@ -61,7 +61,6 @@ export default function ProductCard({
             borderRadius: 12,
             border: "1px solid #eee",
             background: "#fafafa",
-            overflow: "hidden",
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -69,8 +68,10 @@ export default function ProductCard({
             src={img}
             alt={photos?.[0]?.alt || ""}
             style={{
-              width: "100%",
-              height: "100%",
+              maxWidth: "100%",
+              maxHeight: "100%",
+              width: "auto",
+              height: "auto",
               objectFit: "contain",
             }}
           />

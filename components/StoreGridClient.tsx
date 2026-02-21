@@ -171,7 +171,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
-          gridAutoRows: 170,
+          gridAutoFlow: "dense",
           gap: 16,
         }}
       >
@@ -188,31 +188,29 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
       <style>{`
         .store-card--default {
           grid-column: span 3;
-          grid-row: span 1;
+          min-height: 320px;
         }
 
         .store-card--tall {
           grid-column: span 2;
-          grid-row: span 2;
+          min-height: 500px;
         }
 
         .store-card--wide {
           grid-column: span 2;
-          grid-row: span 1;
+          min-height: 280px;
         }
 
         @media (max-width: 900px) {
           .store-grid-collage {
             grid-template-columns: 1fr !important;
-            grid-auto-rows: auto !important;
           }
 
           .store-card--default,
           .store-card--tall,
           .store-card--wide {
             grid-column: span 1 !important;
-            grid-row: span 1 !important;
-            min-height: 0 !important;
+            min-height: 320px !important;
           }
         }
       `}</style>
