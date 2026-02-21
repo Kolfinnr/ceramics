@@ -121,6 +121,7 @@ export default function CeramicItem({
 
       {/* Main layout: gallery + description */}
       <div
+        className="ceramic-item-layout"
         style={{
           display: "grid",
           gridTemplateColumns: "1.35fr 1fr",
@@ -129,7 +130,7 @@ export default function CeramicItem({
         }}
       >
         {/* Gallery */}
-        <section style={{ display: "grid", gap: 12 }}>
+        <section className="ceramic-item-gallery" style={{ display: "grid", gap: 12 }}>
           {main && (
             <div
               className="product-main-image"
@@ -141,7 +142,8 @@ export default function CeramicItem({
                 display: "grid",
                 placeItems: "center",
                 overflow: "hidden",
-                aspectRatio: "4 / 3",
+                minHeight: 280,
+                maxHeight: "65vh",
               }}
               onMouseEnter={() => setZoomed(true)}
               onMouseLeave={() => setZoomed(false)}
@@ -157,8 +159,10 @@ export default function CeramicItem({
                 src={main}
                 alt={photos?.[selectedIndex]?.alt || ""}
                 style={{
-                  width: "100%",
-                  height: "100%",
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  width: "auto",
+                  height: "auto",
                   objectFit: "contain",
                   transition: "transform 0.2s ease",
                   transform: zoomed ? "scale(1.4)" : "scale(1)",
@@ -170,6 +174,7 @@ export default function CeramicItem({
 
           {photos.length > 1 && (
             <div
+              className="ceramic-item-thumbs"
               style={{
                 display: "flex",
                 gap: 10,
@@ -318,14 +323,28 @@ export default function CeramicItem({
         </aside>
       </div>
 
-      {/* Mobile fallback */}
+      {/* Responsive popup fit */}
       <style>{`
         @media (max-width: 900px) {
-          main > div:nth-child(2) {
+          .ceramic-item-layout {
             grid-template-columns: 1fr !important;
+            gap: 14px !important;
           }
+
           .product-main-image {
-            aspect-ratio: 1 / 1 !important;
+            min-height: 220px !important;
+            max-height: 45vh !important;
+          }
+
+          .ceramic-item-thumbs img {
+            width: 84px !important;
+            height: 84px !important;
+          }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+          .product-main-image img {
+            transform: none !important;
           }
         }
       `}</style>
