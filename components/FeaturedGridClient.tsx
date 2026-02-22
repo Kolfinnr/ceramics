@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CeramicItem from "./CeramicItem";
 import { ProductStory } from "@/lib/storyblok-types";
+
+type ActiveImageMeta = { width?: number; height?: number };
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 type FeaturedCardItem = {
   slug: string;
@@ -18,12 +21,15 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
   const [openStory, setOpenStory] = useState<ProductStory | null>(null);
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
+  const [activeImageMeta, setActiveImageMeta] = useState<ActiveImageMeta>({});
+  const modalRef = useRef<HTMLDivElement | null>(null);
 
   const closeModal = () => {
     setOpenSlug(null);
     setOpenStory(null);
     setStoryError(null);
     setLoadingStory(false);
+    setActiveImageMeta({});
   };
 
   const openModal = async (slug: string) => {
@@ -50,6 +56,57 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
       setLoadingStory(false);
     }
   };
+
+  useEffect(() => {
+    if (!openSlug) return;
+
+    const updateModalSize = () => {
+      const modal = modalRef.current;
+      if (!modal) return;
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const modalMaxW = Math.min(vw * 0.92, 1200);
+      const modalMaxH = Math.min(vh * 0.9, 900);
+
+      if (vw < 900) {
+        const mobileW = modalMaxW;
+        const mobileH = clamp(Math.min(vh * 0.88, modalMaxH), 420, modalMaxH);
+        modal.style.width = `${Math.round(mobileW)}px`;
+        modal.style.height = `${Math.round(mobileH)}px`;
+        return;
+      }
+
+      const modalMinW = Math.min(760, modalMaxW);
+      const modalMinH = Math.min(520, modalMaxH);
+      const detailsWidth = 420;
+      const gap = 24;
+      const padding = 32;
+      const headerFooterSpace = 180;
+
+      const ratio =
+        activeImageMeta.width && activeImageMeta.height
+          ? activeImageMeta.width / activeImageMeta.height
+          : 1;
+
+      const mediaStageHeight = clamp(vh * 0.72, 420, Math.min(760, modalMaxH - headerFooterSpace));
+      const availableMediaWidth = Math.max(260, modalMaxW - detailsWidth - gap - padding * 2);
+      const mediaStageWidth = clamp(mediaStageHeight * ratio, 260, availableMediaWidth);
+
+      const targetW = clamp(detailsWidth + gap + mediaStageWidth + padding * 2, modalMinW, modalMaxW);
+      const targetH = clamp(Math.max(mediaStageHeight + headerFooterSpace, modalMinH), modalMinH, modalMaxH);
+
+      modal.style.width = `${Math.round(targetW)}px`;
+      modal.style.height = `${Math.round(targetH)}px`;
+    };
+
+    updateModalSize();
+    window.requestAnimationFrame(updateModalSize);
+
+    const onResize = () => updateModalSize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [openSlug, activeImageMeta]);
 
   return (
     <>
@@ -119,9 +176,12 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
           }}
         >
           <div
+            ref={modalRef}
             onClick={(event) => event.stopPropagation()}
             style={{
-              width: "min(1100px, 100%)",
+              width: "min(92vw, 1100px)",
+              height: "min(90vh, 900px)",
+              maxWidth: "92vw",
               maxHeight: "90vh",
               background: "#fff",
               borderRadius: 16,
@@ -131,6 +191,8 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
               flexDirection: "column",
               overflow: "hidden",
               position: "relative",
+              transition: "width 180ms ease, height 180ms ease",
+              willChange: "width, height",
             }}
           >
             <button
@@ -161,7 +223,7 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
                 </div>
               )}
 
-              {openStory && <CeramicItem story={openStory} />}
+              {openStory && <CeramicItem story={openStory} onActiveImageMetaChange={setActiveImageMeta} />}
             </div>
           </div>
         </div>

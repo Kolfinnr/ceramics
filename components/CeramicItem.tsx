@@ -1,15 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { render } from "storyblok-rich-text-react-renderer";
 import { addToCart } from "@/lib/cart-storage";
 import { ProductContent, ProductStory, StoryblokImage } from "@/lib/storyblok-types";
 
+type ActiveImageMeta = { width?: number; height?: number };
+
 export default function CeramicItem({
   story,
+  onActiveImageMetaChange,
 }: {
   story: ProductStory;
+  onActiveImageMetaChange?: (meta: ActiveImageMeta) => void;
 }) {
   const c = story?.content ?? ({} as ProductContent);
 
@@ -55,6 +59,43 @@ export default function CeramicItem({
   const [zoomed, setZoomed] = useState(false);
   const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
   const main = photos?.[selectedIndex]?.filename ?? photos?.[0]?.filename;
+
+  const mainImageRef = useRef<HTMLImageElement | null>(null);
+
+  const parseDimensionsFromUrl = (url?: string): ActiveImageMeta => {
+    if (!url) return {};
+    const match = url.match(/\/(\d+)x(\d+)\//);
+    if (!match) return {};
+    const width = Number(match[1]);
+    const height = Number(match[2]);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return {};
+    }
+    return { width, height };
+  };
+
+  const emitActiveImageMeta = () => {
+    if (!onActiveImageMetaChange) return;
+    const fromUrl = parseDimensionsFromUrl(main);
+    if (fromUrl.width && fromUrl.height) {
+      onActiveImageMetaChange(fromUrl);
+      return;
+    }
+
+    const img = mainImageRef.current;
+    if (img?.naturalWidth && img?.naturalHeight) {
+      onActiveImageMetaChange({ width: img.naturalWidth, height: img.naturalHeight });
+      return;
+    }
+
+    onActiveImageMetaChange({});
+  };
+
+  useEffect(() => {
+    emitActiveImageMeta();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [main, selectedIndex, onActiveImageMetaChange]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [addedMessage, setAddedMessage] = useState<string | null>(null);
@@ -162,6 +203,7 @@ export default function CeramicItem({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                ref={mainImageRef}
                 src={main}
                 alt={photos?.[selectedIndex]?.alt || ""}
                 style={{
@@ -174,6 +216,7 @@ export default function CeramicItem({
                   transform: zoomed ? "scale(1.4)" : "scale(1)",
                   transformOrigin: zoomOrigin,
                 }}
+                onLoad={emitActiveImageMeta}
               />
             </div>
           )}
