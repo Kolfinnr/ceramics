@@ -139,9 +139,8 @@ export default function FeaturedWheel({
     };
 
     const onWheel = (event: WheelEvent) => {
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
       event.preventDefault();
-      track.scrollLeft += event.deltaY;
+      track.scrollLeft += event.deltaX + event.deltaY;
       requestUpdate();
     };
 
@@ -160,10 +159,6 @@ export default function FeaturedWheel({
     <div
       style={{
         marginTop: 18,
-        border: "1px solid #d9cbb8",
-        borderRadius: 20,
-        background: "#fff",
-        padding: 14,
       }}
     >
       <div
@@ -177,7 +172,7 @@ export default function FeaturedWheel({
           overflowY: "hidden",
           scrollSnapType: "x mandatory",
           scrollBehavior: "smooth",
-          padding: "2px 8px 10px",
+          padding: "2px 2px 10px",
         }}
       >
         <div style={{ flex: "0 0 max(8px, calc(50% - 240px))" }} aria-hidden />
@@ -204,10 +199,10 @@ export default function FeaturedWheel({
                 scrollSnapAlign: "center",
                 textAlign: "left",
                 color: "inherit",
-                border: "1px solid #d9cbb8",
-                borderRadius: 16,
-                background: "#fff",
-                padding: 10,
+                border: "none",
+                borderRadius: 0,
+                background: "transparent",
+                padding: 0,
                 cursor: "pointer",
                 display: "flex",
                 flexDirection: "column",
@@ -226,12 +221,12 @@ export default function FeaturedWheel({
                 style={{
                   flex: 1,
                   minHeight: 0,
-                  borderRadius: 12,
-                  border: "1px solid #eadfce",
+                  borderRadius: 0,
+                  border: "none",
                   overflow: "hidden",
                   display: "grid",
                   placeItems: "center",
-                  background: "#fff",
+                  background: "transparent",
                 }}
               >
                 {item.photo ? (
@@ -263,16 +258,16 @@ export default function FeaturedWheel({
                     style={{
                       width: "100%",
                       height: "100%",
-                      objectFit: "contain",
+                      objectFit: "cover",
                       display: "block",
                     }}
                   />
                 ) : null}
               </div>
 
-              <strong style={{ fontSize: 18, lineHeight: 1.2 }}>{item.name}</strong>
-              {typeof item.price === "number" && <span>{item.price} PLN</span>}
-              <span style={{ fontSize: 13, color: item.availableNow > 0 ? "#355a2f" : "#8c4d0f" }}>
+              <strong style={{ fontSize: 18, lineHeight: 1.2, paddingInline: 4 }}>{item.name}</strong>
+              {typeof item.price === "number" && <span style={{ paddingInline: 4 }}>{item.price} PLN</span>}
+              <span style={{ fontSize: 13, color: item.availableNow > 0 ? "#355a2f" : "#8c4d0f", paddingInline: 4 }}>
                 {item.availableNow > 0 ? `${item.availableNow} ready now` : "Made to order (2–3 weeks)"}
               </span>
             </button>
@@ -293,7 +288,7 @@ export default function FeaturedWheel({
         }
 
         .featured-wheel-track::-webkit-scrollbar-track {
-          background: #f7f0e4;
+          background: transparent;
           border-radius: 999px;
         }
 
