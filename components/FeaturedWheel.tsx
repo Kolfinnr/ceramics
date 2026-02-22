@@ -367,10 +367,8 @@ export default function FeaturedWheel({
                       });
                     }}
                     style={{
-                      width: "auto",
-                      height: "auto",
-                      maxWidth: "100%",
-                      maxHeight: "100%",
+                      width: "100%",
+                      height: "100%",
                       objectFit: "contain",
                       objectPosition: "center center",
                       display: "block",
