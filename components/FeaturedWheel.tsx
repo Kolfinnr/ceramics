@@ -34,7 +34,7 @@ const computeCoverflowStyles = (normalizedDistance: number) => {
   const scale = clamp(1 - t * 0.25, 0.75, 1);
   const alpha = clamp(1 - t * 0.65, 0.35, 1);
   const lift = Math.round(t * 12);
-  const blur = t * 1.8;
+  const blur = t * 1.4;
   return { scale, alpha, lift, blur };
 };
 
@@ -48,6 +48,8 @@ export default function FeaturedWheel({
   const [imageMetaBySlug, setImageMetaBySlug] = useState<Record<string, ImageMeta>>({});
   const [viewportWidth, setViewportWidth] = useState(1200);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
 
   const trackRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -103,6 +105,11 @@ export default function FeaturedWheel({
 
     let frame = 0;
 
+    const updateArrowState = () => {
+      setCanScrollPrev(track.scrollLeft > 4);
+      setCanScrollNext(track.scrollLeft < track.scrollWidth - track.clientWidth - 4);
+    };
+
     const updateTransforms = () => {
       frame = 0;
       if (reducedMotion) {
@@ -112,6 +119,7 @@ export default function FeaturedWheel({
           card.style.setProperty("--y", "0px");
           card.style.setProperty("--blur", "0px");
         });
+        updateArrowState();
         return;
       }
 
@@ -131,6 +139,8 @@ export default function FeaturedWheel({
         card.style.setProperty("--y", `${lift}px`);
         card.style.setProperty("--blur", `${blur.toFixed(2)}px`);
       });
+
+      updateArrowState();
     };
 
     const requestUpdate = () => {
@@ -146,21 +156,36 @@ export default function FeaturedWheel({
 
     track.addEventListener("scroll", requestUpdate, { passive: true });
     track.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("resize", requestUpdate);
     requestUpdate();
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
       track.removeEventListener("scroll", requestUpdate);
       track.removeEventListener("wheel", onWheel);
+      window.removeEventListener("resize", requestUpdate);
     };
   }, [items, cardSizes, reducedMotion]);
 
+  const scrollByStep = (direction: -1 | 1) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const step = Math.max(track.clientWidth * 0.72, 240);
+    track.scrollBy({ left: direction * step, behavior: "smooth" });
+  };
+
   return (
-    <div
-      style={{
-        marginTop: 18,
-      }}
-    >
+    <div style={{ marginTop: 18, position: "relative" }}>
+      <button
+        type="button"
+        aria-label="Scroll featured products left"
+        onClick={() => scrollByStep(-1)}
+        disabled={!canScrollPrev}
+        className="featured-wheel-nav featured-wheel-nav--prev"
+      >
+        ‹
+      </button>
+
       <div
         ref={trackRef}
         className="featured-wheel-track"
@@ -277,24 +302,66 @@ export default function FeaturedWheel({
         <div style={{ flex: "0 0 max(8px, calc(50% - 240px))" }} aria-hidden />
       </div>
 
+      <button
+        type="button"
+        aria-label="Scroll featured products right"
+        onClick={() => scrollByStep(1)}
+        disabled={!canScrollNext}
+        className="featured-wheel-nav featured-wheel-nav--next"
+      >
+        ›
+      </button>
+
       <style>{`
+        .featured-wheel-track {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+
         .featured-wheel-track::-webkit-scrollbar {
-          height: 10px;
+          display: none;
         }
 
-        .featured-wheel-track::-webkit-scrollbar-thumb {
-          background: #d9cbb8;
+        .featured-wheel-nav {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 3;
+          width: 40px;
+          height: 40px;
           border-radius: 999px;
+          border: 1px solid #d9cbb8;
+          background: rgba(255,255,255,0.92);
+          color: #2b2620;
+          font-size: 28px;
+          line-height: 1;
+          display: inline-grid;
+          place-items: center;
+          cursor: pointer;
         }
 
-        .featured-wheel-track::-webkit-scrollbar-track {
-          background: transparent;
-          border-radius: 999px;
+        .featured-wheel-nav:disabled {
+          opacity: 0.35;
+          cursor: default;
+        }
+
+        .featured-wheel-nav--prev {
+          left: 6px;
+        }
+
+        .featured-wheel-nav--next {
+          right: 6px;
         }
 
         @media (max-width: 900px) {
           .featured-wheel-card {
             scroll-snap-stop: always;
+          }
+
+          .featured-wheel-nav {
+            width: 34px;
+            height: 34px;
+            font-size: 24px;
           }
         }
 
