@@ -238,7 +238,7 @@ export default function CeramicItem({
                   width: "100%",
                   borderRadius: 16,
                   overflow: "hidden",
-                  background: "rgba(255, 255, 255, 0.55)",
+                  background: "var(--background)",
                   border: "1px solid #d9cbb8",
                   display: "grid",
                   placeItems: "center",
