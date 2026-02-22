@@ -1,19 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { render } from "storyblok-rich-text-react-renderer";
 import { addToCart } from "@/lib/cart-storage";
 import { ProductContent, ProductStory, StoryblokImage } from "@/lib/storyblok-types";
 
+type ActiveImageMeta = { width?: number; height?: number };
+
 export default function CeramicItem({
   story,
+  onActiveImageMetaChange,
+  mediaStageHeight,
+  forceMobileLayout = false,
 }: {
   story: ProductStory;
+  onActiveImageMetaChange?: (meta: ActiveImageMeta) => void;
+  mediaStageHeight?: number;
+  forceMobileLayout?: boolean;
 }) {
   const c = story?.content ?? ({} as ProductContent);
 
-  const title = c.name || "Product";
+  const normalizedContent = c as ProductContent & { title?: string };
+  const title =
+    normalizedContent.title?.trim() ||
+    normalizedContent.name?.trim() ||
+    story?.name?.trim() ||
+    "Product";
   const priceRaw = c.price_pln;
   const price =
     typeof priceRaw === "number"
@@ -50,6 +63,54 @@ export default function CeramicItem({
   const [zoomed, setZoomed] = useState(false);
   const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
   const main = photos?.[selectedIndex]?.filename ?? photos?.[0]?.filename;
+  const canStepImages = photos.length > 1;
+
+  const mainImageRef = useRef<HTMLImageElement | null>(null);
+
+  const parseDimensionsFromUrl = (url?: string): ActiveImageMeta => {
+    if (!url) return {};
+    const match = url.match(/\/(\d+)x(\d+)\//);
+    if (!match) return {};
+    const width = Number(match[1]);
+    const height = Number(match[2]);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return {};
+    }
+    return { width, height };
+  };
+
+  const emitActiveImageMeta = () => {
+    if (!onActiveImageMetaChange) return;
+    const fromUrl = parseDimensionsFromUrl(main);
+    if (fromUrl.width && fromUrl.height) {
+      onActiveImageMetaChange(fromUrl);
+      return;
+    }
+
+    const img = mainImageRef.current;
+    if (img?.naturalWidth && img?.naturalHeight) {
+      onActiveImageMetaChange({ width: img.naturalWidth, height: img.naturalHeight });
+      return;
+    }
+
+    onActiveImageMetaChange({});
+  };
+
+  const goToPrevImage = () => {
+    if (!canStepImages) return;
+    setSelectedIndex((current) => (current - 1 + photos.length) % photos.length);
+  };
+
+  const goToNextImage = () => {
+    if (!canStepImages) return;
+    setSelectedIndex((current) => (current + 1) % photos.length);
+  };
+
+  useEffect(() => {
+    emitActiveImageMeta();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [main, selectedIndex, onActiveImageMetaChange]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [addedMessage, setAddedMessage] = useState<string | null>(null);
@@ -121,59 +182,164 @@ export default function CeramicItem({
 
       {/* Main layout: gallery + description */}
       <div
+        className="ceramic-item-layout"
         style={{
           display: "grid",
-          gridTemplateColumns: "1.35fr 1fr",
+          gridTemplateColumns: forceMobileLayout ? "1fr" : "minmax(0, 1fr) 420px",
           gap: 22,
           alignItems: "start",
         }}
       >
         {/* Gallery */}
-        <section style={{ display: "grid", gap: 12 }}>
-          {main && (
-            <div
-              className="product-main-image"
-              style={{
-                width: "100%",
-                borderRadius: 16,
-                border: "1px solid #eee",
-                background: "#fafafa",
-                display: "grid",
-                placeItems: "center",
-                overflow: "hidden",
-                aspectRatio: "4 / 3",
-              }}
-              onMouseEnter={() => setZoomed(true)}
-              onMouseLeave={() => setZoomed(false)}
-              onMouseMove={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                const x = ((event.clientX - rect.left) / rect.width) * 100;
-                const y = ((event.clientY - rect.top) / rect.height) * 100;
-                setZoomOrigin(`${x}% ${y}%`);
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={main}
-                alt={photos?.[selectedIndex]?.alt || ""}
+        <section className="ceramic-item-gallery" style={{ display: "grid", gap: 12 }}>
+          <div
+            className="ceramic-item-media-row"
+            style={{
+              display: "grid",
+              gap: 12,
+              alignItems: "start",
+              gridTemplateColumns: !forceMobileLayout && photos.length > 1 ? "84px minmax(0, 1fr)" : "1fr",
+            }}
+          >
+            {!forceMobileLayout && photos.length > 1 && (
+              <div
+                className="ceramic-item-thumbs ceramic-item-thumbs--rail"
+                style={{
+                  display: "grid",
+                  gap: 8,
+                  overflowY: "auto",
+                  maxHeight: mediaStageHeight ? `${mediaStageHeight}px` : undefined,
+                }}
+              >
+                {photos.map((p: StoryblokImage, index: number) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={p.id || p.filename}
+                    src={p.filename}
+                    alt={p.alt || ""}
+                    onClick={() => setSelectedIndex(index)}
+                    style={{
+                      width: 84,
+                      height: 84,
+                      objectFit: "cover",
+                      borderRadius: 12,
+                      border: index === selectedIndex ? "2px solid #111" : "1px solid #eee",
+                      cursor: "pointer",
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {main && (
+              <div
+                className="product-main-image"
                 style={{
                   width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  transition: "transform 0.2s ease",
-                  transform: zoomed ? "scale(1.4)" : "scale(1)",
-                  transformOrigin: zoomOrigin,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  background: "transparent",
+                  border: "none",
+                  display: "grid",
+                  placeItems: "center",
+                  position: "relative",
+                  height: mediaStageHeight ? `${mediaStageHeight}px` : undefined,
+                  minHeight: forceMobileLayout ? 220 : 280,
                 }}
-              />
-            </div>
-          )}
+                onMouseEnter={() => setZoomed(true)}
+                onMouseLeave={() => setZoomed(false)}
+                onMouseMove={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const x = ((event.clientX - rect.left) / rect.width) * 100;
+                  const y = ((event.clientY - rect.top) / rect.height) * 100;
+                  setZoomOrigin(`${x}% ${y}%`);
+                }}
+              >
+                {canStepImages && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Previous image"
+                      onClick={goToPrevImage}
+                      className="carousel-arrow carousel-arrow--prev"
+                      style={{
+                        position: "absolute",
+                        left: 10,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 40,
+                        height: 40,
+                        borderRadius: 999,
+                        border: "none",
+                        background: "transparent",
+                        color: "#2b2620",
+                        textShadow: "none",
+                        cursor: "pointer",
+                        zIndex: 2,
+                        opacity: 0,
+                        pointerEvents: "none",
+                        transition: "opacity 160ms ease, background-color 160ms ease",
+                      }}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Next image"
+                      onClick={goToNextImage}
+                      className="carousel-arrow carousel-arrow--next"
+                      style={{
+                        position: "absolute",
+                        right: 10,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 40,
+                        height: 40,
+                        borderRadius: 999,
+                        border: "none",
+                        background: "transparent",
+                        color: "#2b2620",
+                        textShadow: "none",
+                        cursor: "pointer",
+                        zIndex: 2,
+                        opacity: 0,
+                        pointerEvents: "none",
+                        transition: "opacity 160ms ease, background-color 160ms ease",
+                      }}
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
 
-          {photos.length > 1 && (
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  ref={mainImageRef}
+                  src={main}
+                  alt={photos?.[selectedIndex]?.alt || ""}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "block",
+                    objectFit: "contain",
+                    transition: "transform 0.2s ease",
+                    transform: zoomed ? "scale(1.4)" : "scale(1)",
+                    transformOrigin: zoomOrigin,
+                  }}
+                  onLoad={emitActiveImageMeta}
+                />
+              </div>
+            )}
+          </div>
+
+          {forceMobileLayout && photos.length > 1 && (
             <div
+              className="ceramic-item-thumbs"
               style={{
                 display: "flex",
                 gap: 10,
                 overflowX: "auto",
+                paddingBottom: 2,
               }}
             >
               {photos.map((p: StoryblokImage, index: number) => (
@@ -184,8 +350,8 @@ export default function CeramicItem({
                   alt={p.alt || ""}
                   onClick={() => setSelectedIndex(index)}
                   style={{
-                    width: 110,
-                    height: 110,
+                    width: 92,
+                    height: 92,
                     objectFit: "cover",
                     borderRadius: 12,
                     border: index === selectedIndex ? "2px solid #111" : "1px solid #eee",
@@ -318,19 +484,62 @@ export default function CeramicItem({
         </aside>
       </div>
 
-      {/* Mobile fallback */}
+      {/* Responsive popup fit */}
       <style>{`
         @media (max-width: 900px) {
-          main > div:nth-child(2) {
+          .ceramic-item-layout {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+
+          .product-main-image {
+            min-height: 220px !important;
+          }
+
+          .ceramic-item-media-row {
             grid-template-columns: 1fr !important;
           }
-          .product-main-image {
-            aspect-ratio: 1 / 1 !important;
+
+          .ceramic-item-thumbs--rail {
+            display: none !important;
+          }
+
+          .ceramic-item-thumbs img {
+            width: 84px !important;
+            height: 84px !important;
+          }
+        }
+
+        .product-main-image:hover .carousel-arrow,
+        .product-main-image:focus-within .carousel-arrow,
+        .carousel-arrow:focus-visible {
+          opacity: 1 !important;
+          pointer-events: auto !important;
+          background: #fff !important;
+          border: 1px solid #d9cbb8 !important;
+        }
+
+        .carousel-arrow {
+          display: inline-grid;
+          place-items: center;
+          font-size: 30px;
+          line-height: 1;
+          font-weight: 500;
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+          .product-main-image img {
+            transform: none !important;
+          }
+
+          .carousel-arrow {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            background: #fff !important;
+            border: 1px solid #d9cbb8 !important;
           }
         }
       `}</style>
     </main>
   );
 }
-
-

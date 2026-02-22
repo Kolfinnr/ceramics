@@ -2,12 +2,16 @@
 
 import { ProductStory } from "@/lib/storyblok-types";
 
+type CardVariant = "default" | "tall" | "wide";
+
 export default function ProductCard({
   product,
   onOpen,
+  variant = "default",
 }: {
   product: ProductStory;
   onOpen: (slug: string) => void;
+  variant?: CardVariant;
 }) {
   const slug = product?.slug;
   const content = product?.content ?? {};
@@ -21,27 +25,38 @@ export default function ProductCard({
     );
   }
 
-  const title = content?.name || product?.name || "Product";
-  const price = content?.price_pln;
+  const normalizedContent = content as { title?: string; name?: string };
+  const title = normalizedContent.title || normalizedContent.name || product?.name || "Product";
+  const rawPrice = content?.price_pln;
+  const price =
+    typeof rawPrice === "number"
+      ? rawPrice
+      : typeof rawPrice === "string"
+        ? Number(rawPrice.replace(",", "."))
+        : null;
   const photos = content?.photos || [];
   const img = photos?.[0]?.filename;
   const available = content?.status !== false;
+  const pcs = Number(content?.pcs);
+  const availableNow = Number.isFinite(pcs) ? Math.max(0, pcs) : available ? 1 : 0;
 
   return (
     <button
       type="button"
       onClick={() => onOpen(slug)}
+      className={`store-card store-card--${variant}`}
       style={{
         display: "block",
         width: "100%",
         textAlign: "left",
         border: "1px solid #eee",
         borderRadius: 14,
-        padding: 12,
         background: "#fff",
         cursor: "pointer",
         color: "inherit",
         opacity: available ? 1 : 0.7,
+        overflow: "hidden",
+        padding: 0,
       }}
     >
       {img && (
@@ -51,28 +66,23 @@ export default function ProductCard({
           alt={photos?.[0]?.alt || ""}
           style={{
             width: "100%",
-            height: 260,
+            height: "auto",
+            display: "block",
             objectFit: "cover",
-            borderRadius: 12,
-            border: "1px solid #eee",
+            borderBottom: "1px solid #eee",
           }}
         />
       )}
 
-      <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
+      <div style={{ padding: "10px 12px", display: "grid", gap: 6 }}>
         <div style={{ fontWeight: 700 }}>{title}</div>
 
-        {typeof price === "number" && <div style={{ color: "#444" }}>{price} PLN</div>}
+        {Number.isFinite(price) && <div style={{ color: "#444" }}>{price} PLN</div>}
 
-        {!available && <div style={{ color: "#b00", fontWeight: 800 }}>Sold</div>}
+        <div style={{ fontSize: 13, color: availableNow > 0 ? "#355a2f" : "#8c4d0f" }}>
+          {availableNow > 0 ? `${availableNow} ready now` : "Made to order (2–3 weeks)"}
+        </div>
       </div>
     </button>
   );
 }
-
-
-
-
-
-
-
