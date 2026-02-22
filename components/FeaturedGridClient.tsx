@@ -15,7 +15,7 @@ function computeModalFromImage({
   detailsW = 420,
   gap = 24,
   pad = 24,
-  headerExtra = 210,
+  headerExtra = 280,
 }: {
   vw: number;
   vh: number;
@@ -29,7 +29,7 @@ function computeModalFromImage({
   const ratio = imgW && imgH ? imgW / imgH : 1.3;
   const isMobile = vw < 900;
   const maxModalW = Math.min(vw * 0.92, 1200);
-  const maxModalH = Math.min(vh * 0.92, 920);
+  const maxModalH = Math.min(vh * 0.94, 940);
 
   if (isMobile) {
     const modalW = maxModalW;
@@ -38,12 +38,12 @@ function computeModalFromImage({
     let mediaW = mediaH0 * ratio;
     if (mediaW > maxMediaW) mediaW = maxMediaW;
     const mediaH = clamp(mediaW / ratio, 320, 620);
-    const modalH = clamp(mediaH + 280, 540, maxModalH);
+    const modalH = clamp(mediaH + 300, 560, maxModalH);
     return { modalW, modalH, mediaH, isMobile: true };
   }
 
   const minModalW = Math.min(760, maxModalW);
-  const minModalH = Math.min(560, maxModalH);
+  const minModalH = Math.min(600, maxModalH);
   const maxMediaW = maxModalW - (detailsW + gap + pad * 2);
 
   let mediaH = clamp(vh * 0.72, 420, 760);
@@ -214,9 +214,9 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
             onClick={(event) => event.stopPropagation()}
             style={{
               width: "min(92vw, 1100px)",
-              height: "min(92vh, 920px)",
+              height: "min(94vh, 940px)",
               maxWidth: "92vw",
-              maxHeight: "92vh",
+              maxHeight: "94vh",
               background: "#fff",
               borderRadius: 16,
               border: "1px solid #eee",
