@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import CeramicItem from "./CeramicItem";
-import FeaturedShelf from "./FeaturedShelf";
+import FeaturedWheel from "./FeaturedWheel";
 import { ProductStory } from "@/lib/storyblok-types";
 
 type ActiveImageMeta = { width?: number; height?: number };
@@ -182,7 +182,7 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
 
   return (
     <>
-      <FeaturedShelf items={items} onOpen={(slug) => void openModal(slug)} />
+      <FeaturedWheel items={items} onOpen={(slug) => void openModal(slug)} />
 
       {openSlug && (
         <div
