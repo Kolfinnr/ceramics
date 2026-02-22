@@ -260,18 +260,24 @@ export default function CeramicItem({
                       type="button"
                       aria-label="Previous image"
                       onClick={goToPrevImage}
+                      className="carousel-arrow carousel-arrow--prev"
                       style={{
                         position: "absolute",
-                        left: 8,
+                        left: 10,
                         top: "50%",
                         transform: "translateY(-50%)",
-                        width: 34,
-                        height: 34,
+                        width: 40,
+                        height: 40,
                         borderRadius: 999,
-                        border: "1px solid #ddd",
-                        background: "rgba(255,255,255,0.92)",
+                        border: "none",
+                        background: "transparent",
+                        color: "#fff",
+                        textShadow: "0 1px 2px rgba(0,0,0,0.35)",
                         cursor: "pointer",
                         zIndex: 2,
+                        opacity: 0,
+                        pointerEvents: "none",
+                        transition: "opacity 160ms ease, background-color 160ms ease",
                       }}
                     >
                       ‹
@@ -280,18 +286,24 @@ export default function CeramicItem({
                       type="button"
                       aria-label="Next image"
                       onClick={goToNextImage}
+                      className="carousel-arrow carousel-arrow--next"
                       style={{
                         position: "absolute",
-                        right: 8,
+                        right: 10,
                         top: "50%",
                         transform: "translateY(-50%)",
-                        width: 34,
-                        height: 34,
+                        width: 40,
+                        height: 40,
                         borderRadius: 999,
-                        border: "1px solid #ddd",
-                        background: "rgba(255,255,255,0.92)",
+                        border: "none",
+                        background: "transparent",
+                        color: "#fff",
+                        textShadow: "0 1px 2px rgba(0,0,0,0.35)",
                         cursor: "pointer",
                         zIndex: 2,
+                        opacity: 0,
+                        pointerEvents: "none",
+                        transition: "opacity 160ms ease, background-color 160ms ease",
                       }}
                     >
                       ›
@@ -497,13 +509,34 @@ export default function CeramicItem({
           }
         }
 
+        .product-main-image:hover .carousel-arrow,
+        .product-main-image:focus-within .carousel-arrow,
+        .carousel-arrow:focus-visible {
+          opacity: 1 !important;
+          pointer-events: auto !important;
+          background: rgba(17, 17, 17, 0.2) !important;
+        }
+
+        .carousel-arrow {
+          display: inline-grid;
+          place-items: center;
+          font-size: 30px;
+          line-height: 1;
+          font-weight: 500;
+        }
+
         @media (hover: none) and (pointer: coarse) {
           .product-main-image img {
             transform: none !important;
+          }
+
+          .carousel-arrow {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            background: rgba(17, 17, 17, 0.16) !important;
           }
         }
       `}</style>
     </main>
   );
 }
-
