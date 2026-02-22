@@ -212,7 +212,12 @@ export default function FeaturedWheel({
     const targetCard = cardRefs.current.get(targetItem.slug);
     if (!targetCard) return;
 
-    targetCard.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    const targetLeft =
+      targetCard.offsetLeft - (track.clientWidth - targetCard.clientWidth) / 2;
+    const maxLeft = Math.max(track.scrollWidth - track.clientWidth, 0);
+    const nextLeft = clamp(targetLeft, 0, maxLeft);
+
+    track.scrollTo({ left: nextLeft, behavior: "smooth" });
   };
 
   const scrollByStep = (direction: -1 | 1) => {
