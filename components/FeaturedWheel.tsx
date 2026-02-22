@@ -50,6 +50,7 @@ export default function FeaturedWheel({
   const [reducedMotion, setReducedMotion] = useState(false);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const trackRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -105,9 +106,34 @@ export default function FeaturedWheel({
 
     let frame = 0;
 
+    const cards = items
+      .map((item) => cardRefs.current.get(item.slug) ?? null)
+      .filter((card): card is HTMLButtonElement => Boolean(card));
+
     const updateArrowState = () => {
       setCanScrollPrev(track.scrollLeft > 4);
       setCanScrollNext(track.scrollLeft < track.scrollWidth - track.clientWidth - 4);
+    };
+
+    const updateCenteredCard = () => {
+      if (!cards.length) return;
+      const trackRect = track.getBoundingClientRect();
+      const centerX = trackRect.left + trackRect.width / 2;
+
+      let bestIndex = 0;
+      let bestDistance = Number.POSITIVE_INFINITY;
+
+      cards.forEach((card, index) => {
+        const rect = card.getBoundingClientRect();
+        const cardCenter = rect.left + rect.width / 2;
+        const distance = Math.abs(cardCenter - centerX);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = index;
+        }
+      });
+
+      setCurrentIndex(bestIndex);
     };
 
     const updateTransforms = () => {
@@ -120,6 +146,7 @@ export default function FeaturedWheel({
           card.style.setProperty("--blur", "0px");
         });
         updateArrowState();
+        updateCenteredCard();
         return;
       }
 
@@ -141,6 +168,7 @@ export default function FeaturedWheel({
       });
 
       updateArrowState();
+      updateCenteredCard();
     };
 
     const requestUpdate = () => {
@@ -167,15 +195,34 @@ export default function FeaturedWheel({
     };
   }, [items, cardSizes, reducedMotion]);
 
-  const scrollByStep = (direction: -1 | 1) => {
+  const scrollToIndex = (targetIndex: number) => {
     const track = trackRef.current;
-    if (!track) return;
-    const step = Math.max(track.clientWidth * 0.72, 240);
-    track.scrollBy({ left: direction * step, behavior: "smooth" });
+    if (!track || !items.length) return;
+
+    const bounded = ((targetIndex % items.length) + items.length) % items.length;
+    const targetItem = items[bounded];
+    const targetCard = cardRefs.current.get(targetItem.slug);
+    if (!targetCard) return;
+
+    targetCard.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   };
 
+  const scrollByStep = (direction: -1 | 1) => {
+    scrollToIndex(currentIndex + direction);
+  };
+
+  useEffect(() => {
+    if (items.length <= 1) return;
+
+    const timer = window.setInterval(() => {
+      scrollToIndex(currentIndex + 1);
+    }, 40000);
+
+    return () => window.clearInterval(timer);
+  }, [currentIndex, items.length]);
+
   return (
-    <div style={{ marginTop: 18, position: "relative" }}>
+    <div className="featured-wheel-root" style={{ marginTop: 18, position: "relative" }}>
       <button
         type="button"
         aria-label="Scroll featured products left"
@@ -338,6 +385,16 @@ export default function FeaturedWheel({
           display: inline-grid;
           place-items: center;
           cursor: pointer;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 160ms ease;
+        }
+
+        .featured-wheel-root:hover .featured-wheel-nav,
+        .featured-wheel-root:focus-within .featured-wheel-nav,
+        .featured-wheel-nav:focus-visible {
+          opacity: 1;
+          pointer-events: auto;
         }
 
         .featured-wheel-nav:disabled {
@@ -362,6 +419,13 @@ export default function FeaturedWheel({
             width: 34px;
             height: 34px;
             font-size: 24px;
+          }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+          .featured-wheel-nav {
+            opacity: 1;
+            pointer-events: auto;
           }
         }
 
