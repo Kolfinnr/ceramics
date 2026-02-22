@@ -338,6 +338,8 @@ export default function FeaturedWheel({
                   display: "grid",
                   placeItems: "center",
                   background: "transparent",
+                  padding: 8,
+                  boxSizing: "border-box",
                 }}
               >
                 {item.photo ? (
@@ -369,7 +371,7 @@ export default function FeaturedWheel({
                     style={{
                       width: "100%",
                       height: "100%",
-                      objectFit: "contain",
+                      objectFit: "scale-down",
                       objectPosition: "center center",
                       display: "block",
                     }}
