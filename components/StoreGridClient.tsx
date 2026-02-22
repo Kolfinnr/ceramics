@@ -11,6 +11,57 @@ type ActiveImageMeta = { width?: number; height?: number };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+function computeModalFromImage({
+  vw,
+  vh,
+  imgW,
+  imgH,
+  detailsW = 420,
+  gap = 24,
+  pad = 24,
+  headerExtra = 140,
+}: {
+  vw: number;
+  vh: number;
+  imgW?: number;
+  imgH?: number;
+  detailsW?: number;
+  gap?: number;
+  pad?: number;
+  headerExtra?: number;
+}) {
+  const ratio = imgW && imgH ? imgW / imgH : 1.3;
+  const isMobile = vw < 900;
+  const maxModalW = Math.min(vw * 0.92, 1200);
+  const maxModalH = Math.min(vh * 0.9, 900);
+
+  if (isMobile) {
+    const modalW = maxModalW;
+    const maxMediaW = modalW - pad * 2;
+    const mediaH0 = clamp(vh * 0.55, 320, 520);
+    let mediaW = mediaH0 * ratio;
+    if (mediaW > maxMediaW) mediaW = maxMediaW;
+    const mediaH = clamp(mediaW / ratio, 320, 620);
+    const modalH = clamp(mediaH + 260, 520, maxModalH);
+    return { modalW, modalH, mediaH, isMobile: true };
+  }
+
+  const minModalW = Math.min(760, maxModalW);
+  const minModalH = Math.min(520, maxModalH);
+  const maxMediaW = maxModalW - (detailsW + gap + pad * 2);
+
+  let mediaH = clamp(vh * 0.72, 420, 760);
+  let mediaW = mediaH * ratio;
+  if (mediaW > maxMediaW) {
+    mediaW = Math.max(260, maxMediaW);
+    mediaH = clamp(mediaW / ratio, 420, 760);
+  }
+
+  const modalW = clamp(detailsW + gap + mediaW + pad * 2, minModalW, maxModalW);
+  const modalH = clamp(Math.max(mediaH + headerExtra, minModalH), minModalH, maxModalH);
+  return { modalW, modalH, mediaH, isMobile: false };
+}
+
 const parseRatioFromFilename = (filename?: string): number | null => {
   if (!filename) return null;
   const match = filename.match(/\/(\d+)x(\d+)\//);
@@ -56,6 +107,8 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
   const [activeImageMeta, setActiveImageMeta] = useState<ActiveImageMeta>({});
+  const [mediaStageHeight, setMediaStageHeight] = useState<number | undefined>(undefined);
+  const [isMobileModal, setIsMobileModal] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
 
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -117,6 +170,8 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
     setStoryError(null);
     setLoadingStory(false);
     setActiveImageMeta({});
+    setMediaStageHeight(undefined);
+    setIsMobileModal(false);
 
     if (searchParams.has("item")) {
       const params = new URLSearchParams(searchParams.toString());
@@ -203,38 +258,17 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
 
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const modalMaxW = Math.min(vw * 0.92, 1200);
-      const modalMaxH = Math.min(vh * 0.9, 900);
+      const { modalW, modalH, mediaH, isMobile } = computeModalFromImage({
+        vw,
+        vh,
+        imgW: activeImageMeta.width,
+        imgH: activeImageMeta.height,
+      });
 
-      if (vw < 900) {
-        const mobileW = modalMaxW;
-        const mobileH = clamp(Math.min(vh * 0.88, modalMaxH), 420, modalMaxH);
-        modal.style.width = `${Math.round(mobileW)}px`;
-        modal.style.height = `${Math.round(mobileH)}px`;
-        return;
-      }
-
-      const modalMinW = Math.min(760, modalMaxW);
-      const modalMinH = Math.min(520, modalMaxH);
-      const detailsWidth = 420;
-      const gap = 24;
-      const padding = 32;
-      const headerFooterSpace = 180;
-
-      const ratio =
-        activeImageMeta.width && activeImageMeta.height
-          ? activeImageMeta.width / activeImageMeta.height
-          : 1;
-
-      const mediaStageHeight = clamp(vh * 0.72, 420, Math.min(760, modalMaxH - headerFooterSpace));
-      const availableMediaWidth = Math.max(260, modalMaxW - detailsWidth - gap - padding * 2);
-      const mediaStageWidth = clamp(mediaStageHeight * ratio, 260, availableMediaWidth);
-
-      const targetW = clamp(detailsWidth + gap + mediaStageWidth + padding * 2, modalMinW, modalMaxW);
-      const targetH = clamp(Math.max(mediaStageHeight + headerFooterSpace, modalMinH), modalMinH, modalMaxH);
-
-      modal.style.width = `${Math.round(targetW)}px`;
-      modal.style.height = `${Math.round(targetH)}px`;
+      modal.style.width = `${Math.round(modalW)}px`;
+      modal.style.height = `${Math.round(modalH)}px`;
+      setMediaStageHeight(Math.round(mediaH));
+      setIsMobileModal(isMobile);
     };
 
     updateModalSize();
@@ -412,7 +446,12 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
                 </div>
               )}
 
-              {openStory && <CeramicItem story={openStory} onActiveImageMetaChange={setActiveImageMeta} />}
+              {openStory && <CeramicItem
+                  story={openStory}
+                  onActiveImageMetaChange={setActiveImageMeta}
+                  mediaStageHeight={mediaStageHeight}
+                  forceMobileLayout={isMobileModal}
+                />}
             </div>
           </div>
         </div>

@@ -11,9 +11,13 @@ type ActiveImageMeta = { width?: number; height?: number };
 export default function CeramicItem({
   story,
   onActiveImageMetaChange,
+  mediaStageHeight,
+  forceMobileLayout = false,
 }: {
   story: ProductStory;
   onActiveImageMetaChange?: (meta: ActiveImageMeta) => void;
+  mediaStageHeight?: number;
+  forceMobileLayout?: boolean;
 }) {
   const c = story?.content ?? ({} as ProductContent);
 
@@ -170,7 +174,7 @@ export default function CeramicItem({
         className="ceramic-item-layout"
         style={{
           display: "grid",
-          gridTemplateColumns: "1.35fr 1fr",
+          gridTemplateColumns: forceMobileLayout ? "1fr" : "minmax(0, 1fr) 420px",
           gap: 22,
           alignItems: "start",
         }}
@@ -183,14 +187,12 @@ export default function CeramicItem({
               style={{
                 width: "100%",
                 borderRadius: 16,
-                border: "1px solid #eee",
-                background: "#fafafa",
+                overflow: "hidden",
+                background: "transparent",
                 display: "grid",
                 placeItems: "center",
-                overflow: "hidden",
-                minHeight: 280,
-                maxHeight: "65vh",
-                padding: 8,
+                height: mediaStageHeight ? `${mediaStageHeight}px` : undefined,
+                minHeight: forceMobileLayout ? 220 : 280,
               }}
               onMouseEnter={() => setZoomed(true)}
               onMouseLeave={() => setZoomed(false)}
@@ -208,8 +210,7 @@ export default function CeramicItem({
                 alt={photos?.[selectedIndex]?.alt || ""}
                 style={{
                   width: "100%",
-                  height: "auto",
-                  maxHeight: "calc(65vh - 16px)",
+                  height: "100%",
                   display: "block",
                   objectFit: "contain",
                   transition: "transform 0.2s ease",
@@ -382,8 +383,6 @@ export default function CeramicItem({
 
           .product-main-image {
             min-height: 220px !important;
-            max-height: 45vh !important;
-            padding: 6px !important;
           }
 
           .ceramic-item-thumbs img {
@@ -395,7 +394,6 @@ export default function CeramicItem({
         @media (hover: none) and (pointer: coarse) {
           .product-main-image img {
             transform: none !important;
-            max-height: calc(45vh - 12px) !important;
           }
         }
       `}</style>
