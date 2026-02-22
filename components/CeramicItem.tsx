@@ -139,9 +139,12 @@ export default function CeramicItem({
                 borderRadius: 16,
                 border: "1px solid #eee",
                 background: "#fafafa",
+                display: "grid",
+                placeItems: "center",
                 overflow: "hidden",
                 minHeight: 280,
                 maxHeight: "65vh",
+                padding: 8,
               }}
               onMouseEnter={() => setZoomed(true)}
               onMouseLeave={() => setZoomed(false)}
@@ -159,8 +162,9 @@ export default function CeramicItem({
                 style={{
                   width: "100%",
                   height: "auto",
+                  maxHeight: "calc(65vh - 16px)",
                   display: "block",
-                  objectFit: "cover",
+                  objectFit: "contain",
                   transition: "transform 0.2s ease",
                   transform: zoomed ? "scale(1.4)" : "scale(1)",
                   transformOrigin: zoomOrigin,
@@ -331,6 +335,7 @@ export default function CeramicItem({
           .product-main-image {
             min-height: 220px !important;
             max-height: 45vh !important;
+            padding: 6px !important;
           }
 
           .ceramic-item-thumbs img {
@@ -342,6 +347,7 @@ export default function CeramicItem({
         @media (hover: none) and (pointer: coarse) {
           .product-main-image img {
             transform: none !important;
+            max-height: calc(45vh - 12px) !important;
           }
         }
       `}</style>

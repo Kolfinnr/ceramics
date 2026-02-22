@@ -320,37 +320,28 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
+              position: "relative",
             }}
           >
-            <div
+            <button
+              onClick={closeModal}
+              aria-label="Close product details"
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: 12,
-                borderBottom: "1px solid #eee",
-                position: "sticky",
-                top: 0,
+                position: "absolute",
+                top: 10,
+                right: 10,
+                border: "1px solid #ddd",
                 background: "#fff",
-                zIndex: 1,
+                borderRadius: 10,
+                padding: "8px 10px",
+                cursor: "pointer",
+                zIndex: 2,
               }}
             >
-              <strong style={{ paddingLeft: 4 }}>Product details</strong>
-              <button
-                onClick={closeModal}
-                style={{
-                  border: "1px solid #ddd",
-                  background: "#fff",
-                  borderRadius: 10,
-                  padding: "8px 10px",
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
-            </div>
+              Close
+            </button>
 
-            <div style={{ overflowY: "auto" }}>
+            <div style={{ overflowY: "auto", paddingTop: 8 }}>
               {loadingStory && <div style={{ padding: 16 }}>Loading…</div>}
 
               {storyError && (
