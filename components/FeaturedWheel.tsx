@@ -232,7 +232,10 @@ export default function FeaturedWheel({
       <button
         type="button"
         aria-label="Scroll featured products left"
-        onClick={() => scrollByStep(-1)}
+        onClick={(event) => {
+          scrollByStep(-1);
+          event.currentTarget.blur();
+        }}
         className="featured-wheel-nav featured-wheel-nav--prev"
       >
         ‹
@@ -357,7 +360,10 @@ export default function FeaturedWheel({
       <button
         type="button"
         aria-label="Scroll featured products right"
-        onClick={() => scrollByStep(1)}
+        onClick={(event) => {
+          scrollByStep(1);
+          event.currentTarget.blur();
+        }}
         className="featured-wheel-nav featured-wheel-nav--next"
       >
         ›
