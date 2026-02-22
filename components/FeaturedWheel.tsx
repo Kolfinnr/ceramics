@@ -304,7 +304,7 @@ export default function FeaturedWheel({
                   height: mediaHeight,
                   borderRadius: 0,
                   border: "none",
-                  overflow: "visible",
+                  overflow: "hidden",
                   display: "grid",
                   placeItems: "center",
                   background: "transparent",
@@ -339,8 +339,10 @@ export default function FeaturedWheel({
                       });
                     }}
                     style={{
-                      width: "100%",
-                      height: "100%",
+                      width: "auto",
+                      height: "auto",
+                      maxWidth: "100%",
+                      maxHeight: "100%",
                       objectFit: "contain",
                       objectPosition: "center center",
                       display: "block",
@@ -357,6 +359,9 @@ export default function FeaturedWheel({
                   gap: 4,
                   paddingInline: 4,
                   overflow: "hidden",
+                  position: "relative",
+                  zIndex: 1,
+                  background: "var(--background)",
                 }}
               >
                 <strong
