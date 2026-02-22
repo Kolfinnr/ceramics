@@ -38,6 +38,37 @@ const computeCoverflowStyles = (normalizedDistance: number) => {
   return { scale, alpha, lift, blur };
 };
 
+const computeWheelHeight = ({
+  items,
+  isMobile,
+  imageMetaBySlug,
+}: {
+  items: FeaturedWheelItem[];
+  isMobile: boolean;
+  imageMetaBySlug: Record<string, ImageMeta>;
+}) => {
+  const base = isMobile ? 260 : 340;
+  let minRatio = Number.POSITIVE_INFINITY;
+
+  for (const item of items) {
+    const parsed = parseDimensionsFromFilename(item.photo ?? undefined);
+    const fallback = imageMetaBySlug[item.slug] ?? {};
+    const width = parsed.width ?? fallback.width;
+    const height = parsed.height ?? fallback.height;
+    if (!width || !height) continue;
+
+    const ratio = width / height;
+    if (Number.isFinite(ratio) && ratio > 0) {
+      minRatio = Math.min(minRatio, ratio);
+    }
+  }
+
+  if (!Number.isFinite(minRatio) || minRatio >= 1) return base;
+
+  const boost = (1 - minRatio) * (isMobile ? 100 : 160);
+  return Math.round(clamp(base + boost, base, isMobile ? 380 : 520));
+};
+
 export default function FeaturedWheel({
   items,
   onOpen,
@@ -78,7 +109,7 @@ export default function FeaturedWheel({
   }, []);
 
   const isMobile = viewportWidth < 900;
-  const cardHeight = isMobile ? 260 : 340;
+  const cardHeight = computeWheelHeight({ items, isMobile, imageMetaBySlug });
 
   const cardSizes = useMemo(() => {
     const next: Record<string, number> = {};
@@ -338,7 +369,7 @@ export default function FeaturedWheel({
                     style={{
                       width: "100%",
                       height: "100%",
-                      objectFit: "cover",
+                      objectFit: "contain",
                       display: "block",
                     }}
                   />
