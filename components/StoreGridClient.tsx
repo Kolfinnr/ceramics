@@ -74,6 +74,39 @@ const parseRatioFromFilename = (filename?: string): number | null => {
   return width / height;
 };
 
+const parseDimensionsFromFilename = (filename?: string): ActiveImageMeta => {
+  if (!filename) return {};
+  const match = filename.match(/\/(\d+)x(\d+)\//);
+  if (!match) return {};
+
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return {};
+  }
+
+  return { width, height };
+};
+
+const resolveLargestImageMeta = (story: ProductStory | null): ActiveImageMeta => {
+  const photos = Array.isArray(story?.content?.photos) ? story?.content?.photos : [];
+  let winner: ActiveImageMeta = {};
+  let winnerArea = 0;
+
+  photos.forEach((photo) => {
+    const parsed = parseDimensionsFromFilename(photo?.filename);
+    if (!parsed.width || !parsed.height) return;
+
+    const area = parsed.width * parsed.height;
+    if (area > winnerArea) {
+      winner = parsed;
+      winnerArea = area;
+    }
+  });
+
+  return winner;
+};
+
 const resolveCardVariant = (product: ProductStory): CardVariant => {
   const rawType = (product?.content as { type?: unknown } | undefined)?.type;
   const normalized = typeof rawType === "string" ? rawType.trim().toLowerCase() : "";
@@ -107,6 +140,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
   const [activeImageMeta, setActiveImageMeta] = useState<ActiveImageMeta>({});
+  const [largestImageMeta, setLargestImageMeta] = useState<ActiveImageMeta>({});
   const [mediaStageHeight, setMediaStageHeight] = useState<number | undefined>(undefined);
   const [isMobileModal, setIsMobileModal] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
@@ -170,6 +204,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
     setStoryError(null);
     setLoadingStory(false);
     setActiveImageMeta({});
+    setLargestImageMeta({});
     setMediaStageHeight(undefined);
     setIsMobileModal(false);
 
@@ -198,7 +233,9 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
       }
 
       const json = JSON.parse(raw);
-      setOpenStory(json.story ?? null);
+      const nextStory = json.story ?? null;
+      setOpenStory(nextStory);
+      setLargestImageMeta(resolveLargestImageMeta(nextStory));
       setLoadingStory(false);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
@@ -261,8 +298,8 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
       const { modalW, modalH, mediaH, isMobile } = computeModalFromImage({
         vw,
         vh,
-        imgW: activeImageMeta.width,
-        imgH: activeImageMeta.height,
+        imgW: largestImageMeta.width ?? activeImageMeta.width,
+        imgH: largestImageMeta.height ?? activeImageMeta.height,
       });
 
       modal.style.width = `${Math.round(modalW)}px`;
@@ -277,7 +314,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
     const onResize = () => updateModalSize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [openSlug, activeImageMeta]);
+  }, [openSlug, activeImageMeta, largestImageMeta]);
 
   return (
     <div style={{ marginTop: 18 }}>

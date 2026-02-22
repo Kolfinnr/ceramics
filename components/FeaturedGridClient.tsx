@@ -7,6 +7,39 @@ import { ProductStory } from "@/lib/storyblok-types";
 type ActiveImageMeta = { width?: number; height?: number };
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+const parseDimensionsFromFilename = (filename?: string): ActiveImageMeta => {
+  if (!filename) return {};
+  const match = filename.match(/\/(\d+)x(\d+)\//);
+  if (!match) return {};
+
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return {};
+  }
+
+  return { width, height };
+};
+
+const resolveLargestImageMeta = (story: ProductStory | null): ActiveImageMeta => {
+  const photos = Array.isArray(story?.content?.photos) ? story.content.photos : [];
+  let winner: ActiveImageMeta = {};
+  let winnerArea = 0;
+
+  photos.forEach((photo) => {
+    const parsed = parseDimensionsFromFilename(photo?.filename);
+    if (!parsed.width || !parsed.height) return;
+
+    const area = parsed.width * parsed.height;
+    if (area > winnerArea) {
+      winner = parsed;
+      winnerArea = area;
+    }
+  });
+
+  return winner;
+};
+
 function computeModalFromImage({
   vw,
   vh,
@@ -73,6 +106,7 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
   const [activeImageMeta, setActiveImageMeta] = useState<ActiveImageMeta>({});
+  const [largestImageMeta, setLargestImageMeta] = useState<ActiveImageMeta>({});
   const [mediaStageHeight, setMediaStageHeight] = useState<number | undefined>(undefined);
   const [isMobileModal, setIsMobileModal] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
@@ -83,6 +117,7 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
     setStoryError(null);
     setLoadingStory(false);
     setActiveImageMeta({});
+    setLargestImageMeta({});
     setMediaStageHeight(undefined);
     setIsMobileModal(false);
   };
@@ -104,7 +139,9 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
       }
 
       const json = JSON.parse(raw) as { story?: ProductStory };
-      setOpenStory(json.story ?? null);
+      const nextStory = json.story ?? null;
+      setOpenStory(nextStory);
+      setLargestImageMeta(resolveLargestImageMeta(nextStory));
       setLoadingStory(false);
     } catch (error: unknown) {
       setStoryError(error instanceof Error ? error.message : String(error));
@@ -124,8 +161,8 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
       const { modalW, modalH, mediaH, isMobile } = computeModalFromImage({
         vw,
         vh,
-        imgW: activeImageMeta.width,
-        imgH: activeImageMeta.height,
+        imgW: largestImageMeta.width ?? activeImageMeta.width,
+        imgH: largestImageMeta.height ?? activeImageMeta.height,
       });
 
       modal.style.width = `${Math.round(modalW)}px`;
@@ -140,7 +177,7 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
     const onResize = () => updateModalSize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [openSlug, activeImageMeta]);
+  }, [openSlug, activeImageMeta, largestImageMeta]);
 
   return (
     <>

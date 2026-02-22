@@ -63,6 +63,7 @@ export default function CeramicItem({
   const [zoomed, setZoomed] = useState(false);
   const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
   const main = photos?.[selectedIndex]?.filename ?? photos?.[0]?.filename;
+  const canStepImages = photos.length > 1;
 
   const mainImageRef = useRef<HTMLImageElement | null>(null);
 
@@ -93,6 +94,16 @@ export default function CeramicItem({
     }
 
     onActiveImageMetaChange({});
+  };
+
+  const goToPrevImage = () => {
+    if (!canStepImages) return;
+    setSelectedIndex((current) => (current - 1 + photos.length) % photos.length);
+  };
+
+  const goToNextImage = () => {
+    if (!canStepImages) return;
+    setSelectedIndex((current) => (current + 1) % photos.length);
   };
 
   useEffect(() => {
@@ -181,54 +192,141 @@ export default function CeramicItem({
       >
         {/* Gallery */}
         <section className="ceramic-item-gallery" style={{ display: "grid", gap: 12 }}>
-          {main && (
-            <div
-              className="product-main-image"
-              style={{
-                width: "100%",
-                borderRadius: 16,
-                overflow: "hidden",
-                background: "transparent",
-                display: "grid",
-                placeItems: "center",
-                height: mediaStageHeight ? `${mediaStageHeight}px` : undefined,
-                minHeight: forceMobileLayout ? 220 : 280,
-              }}
-              onMouseEnter={() => setZoomed(true)}
-              onMouseLeave={() => setZoomed(false)}
-              onMouseMove={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                const x = ((event.clientX - rect.left) / rect.width) * 100;
-                const y = ((event.clientY - rect.top) / rect.height) * 100;
-                setZoomOrigin(`${x}% ${y}%`);
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                ref={mainImageRef}
-                src={main}
-                alt={photos?.[selectedIndex]?.alt || ""}
+          <div
+            className="ceramic-item-media-row"
+            style={{
+              display: "grid",
+              gap: 12,
+              alignItems: "start",
+              gridTemplateColumns: !forceMobileLayout && photos.length > 1 ? "84px minmax(0, 1fr)" : "1fr",
+            }}
+          >
+            {!forceMobileLayout && photos.length > 1 && (
+              <div
+                className="ceramic-item-thumbs ceramic-item-thumbs--rail"
+                style={{
+                  display: "grid",
+                  gap: 8,
+                  overflowY: "auto",
+                  maxHeight: mediaStageHeight ? `${mediaStageHeight}px` : undefined,
+                }}
+              >
+                {photos.map((p: StoryblokImage, index: number) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={p.id || p.filename}
+                    src={p.filename}
+                    alt={p.alt || ""}
+                    onClick={() => setSelectedIndex(index)}
+                    style={{
+                      width: 84,
+                      height: 84,
+                      objectFit: "cover",
+                      borderRadius: 12,
+                      border: index === selectedIndex ? "2px solid #111" : "1px solid #eee",
+                      cursor: "pointer",
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {main && (
+              <div
+                className="product-main-image"
                 style={{
                   width: "100%",
-                  height: "100%",
-                  display: "block",
-                  objectFit: "contain",
-                  transition: "transform 0.2s ease",
-                  transform: zoomed ? "scale(1.4)" : "scale(1)",
-                  transformOrigin: zoomOrigin,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  background: "transparent",
+                  display: "grid",
+                  placeItems: "center",
+                  position: "relative",
+                  height: mediaStageHeight ? `${mediaStageHeight}px` : undefined,
+                  minHeight: forceMobileLayout ? 220 : 280,
                 }}
-                onLoad={emitActiveImageMeta}
-              />
-            </div>
-          )}
+                onMouseEnter={() => setZoomed(true)}
+                onMouseLeave={() => setZoomed(false)}
+                onMouseMove={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const x = ((event.clientX - rect.left) / rect.width) * 100;
+                  const y = ((event.clientY - rect.top) / rect.height) * 100;
+                  setZoomOrigin(`${x}% ${y}%`);
+                }}
+              >
+                {canStepImages && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Previous image"
+                      onClick={goToPrevImage}
+                      style={{
+                        position: "absolute",
+                        left: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 34,
+                        height: 34,
+                        borderRadius: 999,
+                        border: "1px solid #ddd",
+                        background: "rgba(255,255,255,0.92)",
+                        cursor: "pointer",
+                        zIndex: 2,
+                      }}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Next image"
+                      onClick={goToNextImage}
+                      style={{
+                        position: "absolute",
+                        right: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 34,
+                        height: 34,
+                        borderRadius: 999,
+                        border: "1px solid #ddd",
+                        background: "rgba(255,255,255,0.92)",
+                        cursor: "pointer",
+                        zIndex: 2,
+                      }}
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
 
-          {photos.length > 1 && (
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  ref={mainImageRef}
+                  src={main}
+                  alt={photos?.[selectedIndex]?.alt || ""}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "block",
+                    objectFit: "contain",
+                    transition: "transform 0.2s ease",
+                    transform: zoomed ? "scale(1.4)" : "scale(1)",
+                    transformOrigin: zoomOrigin,
+                  }}
+                  onLoad={emitActiveImageMeta}
+                />
+              </div>
+            )}
+          </div>
+
+          {forceMobileLayout && photos.length > 1 && (
             <div
               className="ceramic-item-thumbs"
               style={{
                 display: "flex",
                 gap: 10,
                 overflowX: "auto",
+                paddingBottom: 2,
               }}
             >
               {photos.map((p: StoryblokImage, index: number) => (
@@ -239,8 +337,8 @@ export default function CeramicItem({
                   alt={p.alt || ""}
                   onClick={() => setSelectedIndex(index)}
                   style={{
-                    width: 110,
-                    height: 110,
+                    width: 92,
+                    height: 92,
                     objectFit: "cover",
                     borderRadius: 12,
                     border: index === selectedIndex ? "2px solid #111" : "1px solid #eee",
@@ -385,6 +483,14 @@ export default function CeramicItem({
             min-height: 220px !important;
           }
 
+          .ceramic-item-media-row {
+            grid-template-columns: 1fr !important;
+          }
+
+          .ceramic-item-thumbs--rail {
+            display: none !important;
+          }
+
           .ceramic-item-thumbs img {
             width: 84px !important;
             height: 84px !important;
@@ -400,5 +506,4 @@ export default function CeramicItem({
     </main>
   );
 }
-
 
