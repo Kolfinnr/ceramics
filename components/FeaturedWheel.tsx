@@ -222,7 +222,7 @@ export default function FeaturedWheel({
 
     const timer = window.setInterval(() => {
       scrollToIndex(currentIndex + 1);
-    }, 40000);
+    }, 15000);
 
     return () => window.clearInterval(timer);
   }, [currentIndex, items.length]);
