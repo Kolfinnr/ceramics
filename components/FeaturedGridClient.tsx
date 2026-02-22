@@ -1,8 +1,95 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CeramicItem from "./CeramicItem";
 import { ProductStory } from "@/lib/storyblok-types";
+
+type ActiveImageMeta = { width?: number; height?: number };
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const parseDimensionsFromFilename = (filename?: string): ActiveImageMeta => {
+  if (!filename) return {};
+  const match = filename.match(/\/(\d+)x(\d+)\//);
+  if (!match) return {};
+
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return {};
+  }
+
+  return { width, height };
+};
+
+const resolveLargestImageMeta = (story: ProductStory | null): ActiveImageMeta => {
+  const photos = Array.isArray(story?.content?.photos) ? story.content.photos : [];
+  let winner: ActiveImageMeta = {};
+  let winnerArea = 0;
+
+  photos.forEach((photo) => {
+    const parsed = parseDimensionsFromFilename(photo?.filename);
+    if (!parsed.width || !parsed.height) return;
+
+    const area = parsed.width * parsed.height;
+    if (area > winnerArea) {
+      winner = parsed;
+      winnerArea = area;
+    }
+  });
+
+  return winner;
+};
+
+function computeModalFromImage({
+  vw,
+  vh,
+  imgW,
+  imgH,
+  detailsW = 420,
+  gap = 24,
+  pad = 24,
+  headerExtra = 320,
+}: {
+  vw: number;
+  vh: number;
+  imgW?: number;
+  imgH?: number;
+  detailsW?: number;
+  gap?: number;
+  pad?: number;
+  headerExtra?: number;
+}) {
+  const ratio = imgW && imgH ? imgW / imgH : 1.3;
+  const isMobile = vw < 900;
+  const maxModalW = Math.min(vw * 0.92, 1200);
+  const maxModalH = Math.min(vh * 0.96, 980);
+
+  if (isMobile) {
+    const modalW = maxModalW;
+    const maxMediaW = modalW - pad * 2;
+    const mediaH0 = clamp(vh * 0.55, 320, 520);
+    let mediaW = mediaH0 * ratio;
+    if (mediaW > maxMediaW) mediaW = maxMediaW;
+    const mediaH = clamp(mediaW / ratio, 320, 620);
+    const modalH = clamp(mediaH + 340, 600, maxModalH);
+    return { modalW, modalH, mediaH, isMobile: true };
+  }
+
+  const minModalW = Math.min(760, maxModalW);
+  const minModalH = Math.min(640, maxModalH);
+  const maxMediaW = maxModalW - (detailsW + gap + pad * 2);
+
+  let mediaH = clamp(vh * 0.72, 420, 760);
+  let mediaW = mediaH * ratio;
+  if (mediaW > maxMediaW) {
+    mediaW = Math.max(260, maxMediaW);
+    mediaH = clamp(mediaW / ratio, 420, 760);
+  }
+
+  const modalW = clamp(detailsW + gap + mediaW + pad * 2, minModalW, maxModalW);
+  const modalH = clamp(Math.max(mediaH + headerExtra, minModalH), minModalH, maxModalH);
+  return { modalW, modalH, mediaH, isMobile: false };
+}
 
 type FeaturedCardItem = {
   slug: string;
@@ -18,12 +105,21 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
   const [openStory, setOpenStory] = useState<ProductStory | null>(null);
   const [loadingStory, setLoadingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
+  const [activeImageMeta, setActiveImageMeta] = useState<ActiveImageMeta>({});
+  const [largestImageMeta, setLargestImageMeta] = useState<ActiveImageMeta>({});
+  const [mediaStageHeight, setMediaStageHeight] = useState<number | undefined>(undefined);
+  const [isMobileModal, setIsMobileModal] = useState(false);
+  const modalRef = useRef<HTMLDivElement | null>(null);
 
   const closeModal = () => {
     setOpenSlug(null);
     setOpenStory(null);
     setStoryError(null);
     setLoadingStory(false);
+    setActiveImageMeta({});
+    setLargestImageMeta({});
+    setMediaStageHeight(undefined);
+    setIsMobileModal(false);
   };
 
   const openModal = async (slug: string) => {
@@ -43,13 +139,45 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
       }
 
       const json = JSON.parse(raw) as { story?: ProductStory };
-      setOpenStory(json.story ?? null);
+      const nextStory = json.story ?? null;
+      setOpenStory(nextStory);
+      setLargestImageMeta(resolveLargestImageMeta(nextStory));
       setLoadingStory(false);
     } catch (error: unknown) {
       setStoryError(error instanceof Error ? error.message : String(error));
       setLoadingStory(false);
     }
   };
+
+  useEffect(() => {
+    if (!openSlug) return;
+
+    const updateModalSize = () => {
+      const modal = modalRef.current;
+      if (!modal) return;
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const { modalW, modalH, mediaH, isMobile } = computeModalFromImage({
+        vw,
+        vh,
+        imgW: largestImageMeta.width ?? activeImageMeta.width,
+        imgH: largestImageMeta.height ?? activeImageMeta.height,
+      });
+
+      modal.style.width = `${Math.round(modalW)}px`;
+      modal.style.height = `${Math.round(modalH)}px`;
+      setMediaStageHeight(Math.round(mediaH));
+      setIsMobileModal(isMobile);
+    };
+
+    updateModalSize();
+    window.requestAnimationFrame(updateModalSize);
+
+    const onResize = () => updateModalSize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [openSlug, activeImageMeta, largestImageMeta]);
 
   return (
     <>
@@ -73,7 +201,7 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
               color: "inherit",
               border: "1px solid #d9cbb8",
               borderRadius: 14,
-              background: "rgba(255, 255, 255, 0.55)",
+              background: "#fff",
               padding: 10,
               cursor: "pointer",
             }}
@@ -119,48 +247,44 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
           }}
         >
           <div
+            ref={modalRef}
             onClick={(event) => event.stopPropagation()}
             style={{
-              width: "min(1100px, 100%)",
-              maxHeight: "90vh",
+              width: "min(92vw, 1100px)",
+              height: "min(96vh, 980px)",
+              maxWidth: "92vw",
+              maxHeight: "96vh",
               background: "#fff",
               borderRadius: 16,
-              border: "1px solid #eee",
+              border: "1px solid #d9cbb8",
               boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
+              position: "relative",
+              transition: "width 180ms ease, height 180ms ease",
+              willChange: "width, height",
             }}
           >
-            <div
+            <button
+              onClick={closeModal}
+              aria-label="Close product details"
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: 12,
-                borderBottom: "1px solid #eee",
-                position: "sticky",
-                top: 0,
+                position: "absolute",
+                top: 10,
+                right: 10,
+                border: "1px solid #ddd",
                 background: "#fff",
-                zIndex: 1,
+                borderRadius: 10,
+                padding: "8px 10px",
+                cursor: "pointer",
+                zIndex: 2,
               }}
             >
-              <strong style={{ paddingLeft: 4 }}>{openStory?.name ?? `Item: ${openSlug}`}</strong>
-              <button
-                onClick={closeModal}
-                style={{
-                  border: "1px solid #ddd",
-                  background: "#fff",
-                  borderRadius: 10,
-                  padding: "8px 10px",
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
-            </div>
+              Close
+            </button>
 
-            <div style={{ overflowY: "auto" }}>
+            <div style={{ overflowY: "auto", paddingTop: 8 }}>
               {loadingStory && <div style={{ padding: 16 }}>Loading…</div>}
 
               {storyError && (
@@ -170,7 +294,12 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
                 </div>
               )}
 
-              {openStory && <CeramicItem story={openStory} />}
+              {openStory && <CeramicItem
+                  story={openStory}
+                  onActiveImageMetaChange={setActiveImageMeta}
+                  mediaStageHeight={mediaStageHeight}
+                  forceMobileLayout={isMobileModal}
+                />}
             </div>
           </div>
         </div>

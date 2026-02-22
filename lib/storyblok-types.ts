@@ -35,6 +35,7 @@ export type StoryblokStory<
 };
 
 export type ProductContent = {
+  title?: string;
   name?: string;
   type?: string;
   price_pln?: number | string;

@@ -25,7 +25,8 @@ export default function ProductCard({
     );
   }
 
-  const title = content?.name || product?.name || "Product";
+  const normalizedContent = content as { title?: string; name?: string };
+  const title = normalizedContent.title || normalizedContent.name || product?.name || "Product";
   const rawPrice = content?.price_pln;
   const price =
     typeof rawPrice === "number"
