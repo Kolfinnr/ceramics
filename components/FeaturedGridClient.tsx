@@ -201,7 +201,7 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
               color: "inherit",
               border: "1px solid #d9cbb8",
               borderRadius: 14,
-              background: "rgba(255, 255, 255, 0.55)",
+              background: "#fff",
               padding: 10,
               cursor: "pointer",
             }}
@@ -254,7 +254,7 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
               height: "min(96vh, 980px)",
               maxWidth: "92vw",
               maxHeight: "96vh",
-              background: "rgba(255, 255, 255, 0.55)",
+              background: "#fff",
               borderRadius: 16,
               border: "1px solid #d9cbb8",
               boxShadow: "0 10px 40px rgba(0,0,0,0.25)",

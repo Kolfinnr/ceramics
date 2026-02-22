@@ -444,7 +444,7 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
               height: "min(96vh, 980px)",
               maxWidth: "92vw",
               maxHeight: "96vh",
-              background: "rgba(255, 255, 255, 0.55)",
+              background: "#fff",
               borderRadius: 16,
               border: "1px solid #d9cbb8",
               boxShadow: "0 10px 40px rgba(0,0,0,0.25)",

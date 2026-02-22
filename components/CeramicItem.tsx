@@ -238,7 +238,7 @@ export default function CeramicItem({
                   width: "100%",
                   borderRadius: 16,
                   overflow: "hidden",
-                  background: "rgba(255, 255, 255, 0.55)",
+                  background: "#fff",
                   border: "1px solid #d9cbb8",
                   display: "grid",
                   placeItems: "center",
@@ -515,7 +515,7 @@ export default function CeramicItem({
         .carousel-arrow:focus-visible {
           opacity: 1 !important;
           pointer-events: auto !important;
-          background: rgba(255, 255, 255, 0.55) !important;
+          background: #fff !important;
           border: 1px solid #d9cbb8 !important;
         }
 
@@ -535,7 +535,7 @@ export default function CeramicItem({
           .carousel-arrow {
             opacity: 1 !important;
             pointer-events: auto !important;
-            background: rgba(255, 255, 255, 0.55) !important;
+            background: #fff !important;
             border: 1px solid #d9cbb8 !important;
           }
         }
