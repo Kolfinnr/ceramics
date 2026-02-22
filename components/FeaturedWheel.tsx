@@ -48,8 +48,6 @@ export default function FeaturedWheel({
   const [imageMetaBySlug, setImageMetaBySlug] = useState<Record<string, ImageMeta>>({});
   const [viewportWidth, setViewportWidth] = useState(1200);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -110,11 +108,6 @@ export default function FeaturedWheel({
       .map((item) => cardRefs.current.get(item.slug) ?? null)
       .filter((card): card is HTMLButtonElement => Boolean(card));
 
-    const updateArrowState = () => {
-      setCanScrollPrev(track.scrollLeft > 4);
-      setCanScrollNext(track.scrollLeft < track.scrollWidth - track.clientWidth - 4);
-    };
-
     const updateCenteredCard = () => {
       if (!cards.length) return;
       const trackRect = track.getBoundingClientRect();
@@ -145,7 +138,6 @@ export default function FeaturedWheel({
           card.style.setProperty("--y", "0px");
           card.style.setProperty("--blur", "0px");
         });
-        updateArrowState();
         updateCenteredCard();
         return;
       }
@@ -167,7 +159,6 @@ export default function FeaturedWheel({
         card.style.setProperty("--blur", `${blur.toFixed(2)}px`);
       });
 
-      updateArrowState();
       updateCenteredCard();
     };
 
@@ -178,7 +169,22 @@ export default function FeaturedWheel({
 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      track.scrollLeft += event.deltaX + event.deltaY;
+      const delta = event.deltaX + event.deltaY;
+      const maxLeft = track.scrollWidth - track.clientWidth;
+
+      if (delta > 0 && track.scrollLeft >= maxLeft - 2) {
+        scrollToIndex(0);
+        requestUpdate();
+        return;
+      }
+
+      if (delta < 0 && track.scrollLeft <= 2) {
+        scrollToIndex(items.length - 1);
+        requestUpdate();
+        return;
+      }
+
+      track.scrollLeft += delta;
       requestUpdate();
     };
 
@@ -227,7 +233,6 @@ export default function FeaturedWheel({
         type="button"
         aria-label="Scroll featured products left"
         onClick={() => scrollByStep(-1)}
-        disabled={!canScrollPrev}
         className="featured-wheel-nav featured-wheel-nav--prev"
       >
         ‹
@@ -353,7 +358,6 @@ export default function FeaturedWheel({
         type="button"
         aria-label="Scroll featured products right"
         onClick={() => scrollByStep(1)}
-        disabled={!canScrollNext}
         className="featured-wheel-nav featured-wheel-nav--next"
       >
         ›
@@ -397,10 +401,6 @@ export default function FeaturedWheel({
           pointer-events: auto;
         }
 
-        .featured-wheel-nav:disabled {
-          opacity: 0.35;
-          cursor: default;
-        }
 
         .featured-wheel-nav--prev {
           left: 6px;
