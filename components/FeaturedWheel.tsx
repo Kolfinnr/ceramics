@@ -34,39 +34,8 @@ const computeCoverflowStyles = (normalizedDistance: number) => {
   const scale = clamp(1 - t * 0.25, 0.75, 1);
   const alpha = clamp(1 - t * 0.65, 0.35, 1);
   const lift = Math.round(t * 12);
-  const blur = t * 1.4;
+  const blur = 0;
   return { scale, alpha, lift, blur };
-};
-
-const computeWheelHeight = ({
-  items,
-  isMobile,
-  imageMetaBySlug,
-}: {
-  items: FeaturedWheelItem[];
-  isMobile: boolean;
-  imageMetaBySlug: Record<string, ImageMeta>;
-}) => {
-  const base = isMobile ? 260 : 340;
-  let minRatio = Number.POSITIVE_INFINITY;
-
-  for (const item of items) {
-    const parsed = parseDimensionsFromFilename(item.photo ?? undefined);
-    const fallback = imageMetaBySlug[item.slug] ?? {};
-    const width = parsed.width ?? fallback.width;
-    const height = parsed.height ?? fallback.height;
-    if (!width || !height) continue;
-
-    const ratio = width / height;
-    if (Number.isFinite(ratio) && ratio > 0) {
-      minRatio = Math.min(minRatio, ratio);
-    }
-  }
-
-  if (!Number.isFinite(minRatio) || minRatio >= 1) return base;
-
-  const boost = (1 - minRatio) * (isMobile ? 100 : 160);
-  return Math.round(clamp(base + boost, base, isMobile ? 380 : 520));
 };
 
 export default function FeaturedWheel({
@@ -109,7 +78,9 @@ export default function FeaturedWheel({
   }, []);
 
   const isMobile = viewportWidth < 900;
-  const cardHeight = computeWheelHeight({ items, isMobile, imageMetaBySlug });
+  const mediaHeight = isMobile ? 220 : 300;
+  const detailsHeight = isMobile ? 92 : 104;
+  const cardHeight = mediaHeight + detailsHeight;
 
   const cardSizes = useMemo(() => {
     const next: Record<string, number> = {};
@@ -123,11 +94,11 @@ export default function FeaturedWheel({
 
       const minWidth = isMobile ? 240 : 260;
       const maxWidth = isMobile ? 380 : 520;
-      next[item.slug] = Math.round(clamp(cardHeight * ratio, minWidth, maxWidth));
+      next[item.slug] = Math.round(clamp(mediaHeight * ratio, minWidth, maxWidth));
     }
 
     return next;
-  }, [items, imageMetaBySlug, cardHeight, isMobile]);
+  }, [items, imageMetaBySlug, mediaHeight, isMobile]);
 
   useEffect(() => {
     const track = trackRef.current;
@@ -315,9 +286,8 @@ export default function FeaturedWheel({
                 background: "transparent",
                 padding: 0,
                 cursor: "pointer",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
+                display: "grid",
+                gridTemplateRows: `${mediaHeight}px ${detailsHeight}px`,
                 transform: "translateY(var(--y, 0px)) scale(var(--scale, 1))",
                 opacity: "var(--alpha, 1)",
                 filter: "blur(var(--blur, 0px))",
@@ -326,15 +296,15 @@ export default function FeaturedWheel({
                   : "transform 160ms ease, opacity 160ms ease, filter 160ms ease",
                 transformOrigin: "center center",
                 willChange: "transform, opacity, filter",
+                overflow: "visible",
               }}
             >
               <div
                 style={{
-                  flex: 1,
-                  minHeight: 0,
+                  height: mediaHeight,
                   borderRadius: 0,
                   border: "none",
-                  overflow: "hidden",
+                  overflow: "visible",
                   display: "grid",
                   placeItems: "center",
                   background: "transparent",
@@ -371,7 +341,7 @@ export default function FeaturedWheel({
                     style={{
                       width: "100%",
                       height: "100%",
-                      objectFit: "scale-down",
+                      objectFit: "contain",
                       objectPosition: "center center",
                       display: "block",
                     }}
@@ -379,11 +349,33 @@ export default function FeaturedWheel({
                 ) : null}
               </div>
 
-              <strong style={{ fontSize: 18, lineHeight: 1.2, paddingInline: 4 }}>{item.name}</strong>
-              {typeof item.price === "number" && <span style={{ paddingInline: 4 }}>{item.price} PLN</span>}
-              <span style={{ fontSize: 13, color: item.availableNow > 0 ? "#355a2f" : "#8c4d0f", paddingInline: 4 }}>
-                {item.availableNow > 0 ? `${item.availableNow} ready now` : "Made to order (2–3 weeks)"}
-              </span>
+              <div
+                style={{
+                  height: detailsHeight,
+                  display: "grid",
+                  alignContent: "start",
+                  gap: 4,
+                  paddingInline: 4,
+                  overflow: "hidden",
+                }}
+              >
+                <strong
+                  style={{
+                    fontSize: 18,
+                    lineHeight: 1.2,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {item.name}
+                </strong>
+                {typeof item.price === "number" && <span>{item.price} PLN</span>}
+                <span style={{ fontSize: 13, color: item.availableNow > 0 ? "#355a2f" : "#8c4d0f" }}>
+                  {item.availableNow > 0 ? `${item.availableNow} ready now` : "Made to order (2–3 weeks)"}
+                </span>
+              </div>
             </button>
           );
         })}
