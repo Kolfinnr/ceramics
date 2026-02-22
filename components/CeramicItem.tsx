@@ -13,7 +13,12 @@ export default function CeramicItem({
 }) {
   const c = story?.content ?? ({} as ProductContent);
 
-  const title = c.name || "Product";
+  const normalizedContent = c as ProductContent & { title?: string };
+  const title =
+    normalizedContent.title?.trim() ||
+    normalizedContent.name?.trim() ||
+    story?.name?.trim() ||
+    "Product";
   const priceRaw = c.price_pln;
   const price =
     typeof priceRaw === "number"
