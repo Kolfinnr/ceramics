@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import CeramicItem from "./CeramicItem";
+import FeaturedWheel from "./FeaturedWheel";
 import { ProductStory } from "@/lib/storyblok-types";
 
 type ActiveImageMeta = { width?: number; height?: number };
@@ -181,55 +182,7 @@ export default function FeaturedGridClient({ items }: { items: FeaturedCardItem[
 
   return (
     <>
-      <div
-        style={{
-          marginTop: 18,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 16,
-        }}
-      >
-        {items.map((item) => (
-          <button
-            key={item.slug}
-            type="button"
-            onClick={() => void openModal(item.slug)}
-            style={{
-              display: "grid",
-              gap: 8,
-              textAlign: "left",
-              color: "inherit",
-              border: "1px solid #d9cbb8",
-              borderRadius: 14,
-              background: "#fff",
-              padding: 10,
-              cursor: "pointer",
-            }}
-          >
-            {item.photo && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={item.photo}
-                alt={item.photoAlt || item.name}
-                style={{
-                  width: "100%",
-                  height: 180,
-                  objectFit: "cover",
-                  borderRadius: 10,
-                  border: "1px solid #eadfce",
-                }}
-              />
-            )}
-            <strong style={{ fontSize: 18 }}>{item.name}</strong>
-            {typeof item.price === "number" && <span>{item.price} PLN</span>}
-            <span style={{ fontSize: 13, color: item.availableNow > 0 ? "#355a2f" : "#8c4d0f" }}>
-              {item.availableNow > 0
-                ? `${item.availableNow} ready now`
-                : "Made to order (2–3 weeks)"}
-            </span>
-          </button>
-        ))}
-      </div>
+      <FeaturedWheel items={items} onOpen={(slug) => void openModal(slug)} />
 
       {openSlug && (
         <div
