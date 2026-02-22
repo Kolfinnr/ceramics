@@ -19,7 +19,7 @@ function computeModalFromImage({
   detailsW = 420,
   gap = 24,
   pad = 24,
-  headerExtra = 280,
+  headerExtra = 320,
 }: {
   vw: number;
   vh: number;
@@ -33,7 +33,7 @@ function computeModalFromImage({
   const ratio = imgW && imgH ? imgW / imgH : 1.3;
   const isMobile = vw < 900;
   const maxModalW = Math.min(vw * 0.92, 1200);
-  const maxModalH = Math.min(vh * 0.94, 940);
+  const maxModalH = Math.min(vh * 0.96, 980);
 
   if (isMobile) {
     const modalW = maxModalW;
@@ -42,12 +42,12 @@ function computeModalFromImage({
     let mediaW = mediaH0 * ratio;
     if (mediaW > maxMediaW) mediaW = maxMediaW;
     const mediaH = clamp(mediaW / ratio, 320, 620);
-    const modalH = clamp(mediaH + 300, 560, maxModalH);
+    const modalH = clamp(mediaH + 340, 600, maxModalH);
     return { modalW, modalH, mediaH, isMobile: true };
   }
 
   const minModalW = Math.min(760, maxModalW);
-  const minModalH = Math.min(600, maxModalH);
+  const minModalH = Math.min(640, maxModalH);
   const maxMediaW = maxModalW - (detailsW + gap + pad * 2);
 
   let mediaH = clamp(vh * 0.72, 420, 760);
@@ -404,9 +404,9 @@ export default function StoreGridClient({ products }: { products: ProductStory[]
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "min(92vw, 1100px)",
-              height: "min(94vh, 940px)",
+              height: "min(96vh, 980px)",
               maxWidth: "92vw",
-              maxHeight: "94vh",
+              maxHeight: "96vh",
               background: "#fff",
               borderRadius: 16,
               border: "1px solid #eee",
